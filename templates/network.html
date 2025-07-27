@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Settings - TTTv1.0.2 Dashboard</title>
+  <style>
+    :root {
+      --trane-red: #e03a3e;
+      --trane-dark: #222;
+      --trane-gray: #f4f4f4;
+      --trane-light-gray: #e6e6e6;
+      --trane-accent: #ffb600;
+    }
+    body {
+      background: var(--trane-light-gray);
+      color: var(--trane-dark);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin: 32px 0 16px 0;
+      font-size: 2em;
+      letter-spacing: 1px;
+      color: var(--trane-red);
+    }
+    .main-content {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      max-width: 400px;
+      width: 100%;
+      padding: 32px 16px;
+      margin-bottom: 32px;
+      box-sizing: border-box;
+    }
+    a.button {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 28px;
+      background: var(--trane-red);
+      color: #fff;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 1em;
+      transition: background 0.2s;
+      font-weight: 500;
+      box-shadow: 0 1px 4px rgba(224,58,62,0.08);
+    }
+    a.button:hover {
+      background: var(--trane-accent);
+      color: var(--trane-dark);
+    }
+    @media (max-width: 500px) {
+      .main-content {
+        max-width: 98vw;
+        font-size: 0.98em;
+      }
+      h1 {
+        font-size: 1.3em;
+      }
+    }
+  </style>
+<title>Network Settings</title>
+<style>
+  .octet-control { display: inline-block; margin: 5px; text-align: center; }
+  .octet-number { font-size: 1.5em; margin: 5px; width: 60px; text-align: center; }
+  button { width: 40px; height: 40px; }
+</style>
+<script>
+function increment(id) {
+  var input = document.getElementById(id);
+  var val = parseInt(input.value) || 0;
+  input.value = (val + 1) % 256;
+}
+function decrement(id) {
+  var input = document.getElementById(id);
+  var val = parseInt(input.value) || 0;
+  input.value = (val - 1 + 256) % 256;
+}
+function setMode(mode) {
+  document.getElementById("static-settings").style.display = (mode === "static") ? "block" : "none";
+}
+</script>
+</head>
+<body onload="setMode('{{ mode }}')">
+<h1>Ethernet Settings</h1>
+<p>Current IP: {{ current_ip }}</p>
+
+<form method="POST">
+  <label>
+    <input type="radio" name="mode" value="dhcp" onchange="setMode('dhcp')" {% if mode=='dhcp' %}checked{% endif %}> DHCP
+  </label>
+  <label>
+    <input type="radio" name="mode" value="static" onchange="setMode('static')" {% if mode=='static' %}checked{% endif %}> Static
+  </label>
+
+  <div id="static-settings" style="display:none; margin-top: 20px;">
+    <h3>Set Static Address</h3>
+
+    <p>IP Address:</p>
+    {% for i in range(4) %}
+    <div class="octet-control">
+      <button type="button" onclick="increment('ip{{i}}')">▲</button><br>
+      <input type="text" id="ip{{i}}" name="ip_octet" class="octet-number" value="{{ ip_octets[i] }}"><br>
+      <button type="button" onclick="decrement('ip{{i}}')">▼</button>
+    </div>
+    {% endfor %}
+
+    <p>Subnet Mask (CIDR): 
+      <select name="mask">
+        {% for m in [24,25,26,27,28] %}
+          <option value="{{m}}">/{{m}}</option>
+        {% endfor %}
+      </select>
+    </p>
+
+    <p>Gateway:</p>
+    {% for i in range(4) %}
+    <div class="octet-control">
+      <button type="button" onclick="increment('gw{{i}}')">▲</button><br>
+      <input type="text" id="gw{{i}}" name="gateway_octet" class="octet-number" value="{{ gw_octets[i] }}"><br>
+      <button type="button" onclick="decrement('gw{{i}}')">▼</button>
+    </div>
+    {% endfor %}
+  </div>
+
+  <br><br>
+  <input type="hidden" name="ip" id="ip">
+  <input type="hidden" name="gateway" id="gateway">
+  <button type="submit" onclick="
+    document.getElementById('ip').value = 
+      document.getElementById('ip0').value + '.' + 
+      document.getElementById('ip1').value + '.' + 
+      document.getElementById('ip2').value + '.' + 
+      document.getElementById('ip3').value;
+    document.getElementById('gateway').value = 
+      document.getElementById('gw0').value + '.' + 
+      document.getElementById('gw1').value + '.' + 
+      document.getElementById('gw2').value + '.' + 
+      document.getElementById('gw3').value;
+  ">Apply</button>
+</form>
+
+<p><a href="/">Back</a></p>
+</body>
+</html>
