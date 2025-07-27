@@ -4,7 +4,7 @@ import subprocess, csv, datetime, os, re, socket
 from mac_vendor_lookup import MacLookup
 
 # Import our scanners
-from bacnet_scan import bacnet_scan
+from bacnet_scan import bacnet_scan, deep_scan_device
 
 app = Flask(__name__)
 
@@ -183,6 +183,19 @@ def bacnet_page():
         t.start()
         scan_results["time"] = 5
     return render_template("bacnet.html", results=scan_results)
+
+@app.route("/bacnet_deep_scan", methods=["POST"])
+def bacnet_deep_scan():
+    device_instance = request.form.get("device_instance")
+    address = request.form.get("address")
+    # Run the deep scan (make sure device_instance is int)
+    results, csv_path = deep_scan_device(int(device_instance), address)
+    # Store the CSV path in your results structure (e.g., in session or a global dict)
+    # For example, you might update your results dict like:
+    for d in scan_results["devices"]:
+        if str(d["device_instance"]) == str(device_instance):
+            d["deep_csv"] = csv_path
+    return redirect(url_for("bacnet"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)
