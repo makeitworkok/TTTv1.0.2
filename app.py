@@ -186,16 +186,32 @@ def bacnet_page():
 
 @app.route("/bacnet_deep_scan", methods=["POST"])
 def bacnet_deep_scan():
-    device_instance = request.form.get("device_instance")
-    address = request.form.get("address")
-    # Run the deep scan (make sure device_instance is int)
-    results, csv_path = deep_scan_device(int(device_instance), address)
-    # Store the CSV path in your results structure (e.g., in session or a global dict)
-    # For example, you might update your results dict like:
-    for d in scan_results["devices"]:
-        if str(d["device_instance"]) == str(device_instance):
-            d["deep_csv"] = csv_path
-    return redirect(url_for("bacnet"))
+    try:
+        device_instance = request.form.get("device_instance")
+        address = request.form.get("address")
+        print(f"Deep scan requested for device_instance={device_instance}, address={address}")
+        results, csv_path = deep_scan_device(int(device_instance), address)
+        for d in scan_results["devices"]:
+            if str(d["device_instance"]) == str(device_instance):
+                d["deep_csv"] = csv_path
+        return redirect(url_for("bacnet"))
+    except Exception as e:
+        print("Error in /bacnet_deep_scan:", e)
+        return "Internal Server Error: " + str(e), 500
+
+# Use this destination in your ReadPropertyRequest, etc.
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)
+
+# In bacnet_scan.py, inside deep_scan_device
+DEEP_SCAN_PORT = 47809  # Any unused UDP port
+
+device = LocalDeviceObject(
+    objectName="TTTv1DeepScanner",
+    objectIdentifier=DEVICE_ID + 1,
+    maxApduLengthAccepted=1024,
+    segmentationSupported="segmentedBoth",
+    vendorIdentifier=15,
+)
+app = BIPSimpleApplication(device, Address(f"{local_ip}:{DEEP_SCAN_PORT}"))

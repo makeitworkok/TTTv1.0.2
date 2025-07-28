@@ -9,6 +9,7 @@ from bacpypes.pdu import Address
 from bacpypes.core import run, stop
 from bacpypes.apdu import WhoIsRequest, IAmRequest, ReadPropertyRequest, ReadPropertyACK, ReadAccessSpecification, ReadPropertyMultipleRequest, ReadAccessResult
 from bacpypes.object import get_datatype
+from bacpypes.iocb import IOCB
 
 OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -143,6 +144,7 @@ def deep_scan_device(device_instance, address, timeout=5):
     Returns a list of dicts (one per property).
     """
     local_ip = get_eth0_ip()
+    DEEP_SCAN_PORT = 47809
     device = LocalDeviceObject(
         objectName="TTTv1DeepScanner",
         objectIdentifier=DEVICE_ID + 1,
@@ -150,7 +152,7 @@ def deep_scan_device(device_instance, address, timeout=5):
         segmentationSupported="segmentedBoth",
         vendorIdentifier=15,
     )
-    app = BIPSimpleApplication(device, Address(f"{local_ip}:{BACNET_PORT}"))
+    app = BIPSimpleApplication(device, Address(f"{local_ip}:{DEEP_SCAN_PORT}"))
 
     # Step 1: Read the object list
     object_list = []
@@ -160,10 +162,14 @@ def deep_scan_device(device_instance, address, timeout=5):
             propertyIdentifier="objectList",
             destination=Address(address),
         )
-        app.request(req)
-        ack = app.get_next_response(timeout=timeout)
+        iocb = IOCB(req)
+        app.request_io(iocb)
+        iocb.wait(timeout=timeout)
+        ack = iocb.ioResponse
         if isinstance(ack, ReadPropertyACK):
             object_list = ack.propertyValue.cast_out()
+        else:
+            print("No response or error for objectList")
     except Exception as e:
         print(f"Failed to read objectList: {e}")
         return []
@@ -176,7 +182,7 @@ def deep_scan_device(device_instance, address, timeout=5):
                 req = ReadPropertyRequest(
                     objectIdentifier=obj_id,
                     propertyIdentifier=prop,
-                    destination=Address(address),
+                    destination=Address(address),  # Always send to device's IP:47808
                 )
                 app.request(req)
                 ack = app.get_next_response(timeout=timeout)
