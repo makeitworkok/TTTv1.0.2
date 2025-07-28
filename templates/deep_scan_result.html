@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BACnet Who-Is Scan</title>
+  <title>BACnet Deep Scan Results</title>
   <style>
     body { background: #e6e6e6; color: #222; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
     h1 { color: #e03a3e; margin-top: 32px; }
@@ -12,45 +12,36 @@
     th { background: #f4f4f4; }
     .button { display: inline-block; margin-top: 12px; padding: 10px 28px; background: #e03a3e; color: #fff; border-radius: 5px; text-decoration: none; font-size: 1em; transition: background 0.2s; font-weight: 500; border: none; cursor: pointer; }
     .button:hover { background: #ffb600; color: #222; }
-    form { display: inline; }
   </style>
 </head>
 <body>
-  <h1>BACnet Who-Is Scan</h1>
+  <h1>BACnet Deep Scan Results</h1>
   <div class="main-content">
-    <form method="POST">
-      <button type="submit" class="button">Start Scan</button>
-    </form>
-    <h2>Discovered Devices</h2>
-    {% if results.devices %}
+    {% if results and results|length > 0 %}
       <table>
         <tr>
-          <th>Device Instance</th>
-          <th>Address</th>
-          <th>Deep Scan</th>
+          <th>Object Type</th>
+          <th>Instance</th>
+          <th>Property</th>
+          <th>Value</th>
         </tr>
-        {% for d in results.devices %}
+        {% for row in results %}
         <tr>
-          <td>{{ d.device_instance }}</td>
-          <td>{{ d.address }}</td>
-          <td>
-            <form method="POST" action="/bacnet_deep_scan">
-              <input type="hidden" name="device_instance" value="{{ d.device_instance }}">
-              <input type="hidden" name="address" value="{{ d.address }}">
-              <button type="submit" class="button">Deep Scan</button>
-            </form>
-          </td>
+          <td>{{ row.object_type }}</td>
+          <td>{{ row.instance }}</td>
+          <td>{{ row.property }}</td>
+          <td>{{ row.value }}</td>
         </tr>
         {% endfor %}
       </table>
-      {% if results.csv %}
-        <a href="/download/{{ results.csv.split('/')[-1] }}" class="button">Download Devices CSV</a>
-      {% endif %}
     {% else %}
-      <p>No devices found. Click "Start Scan" to begin.</p>
+      <p>No properties found or device did not respond.</p>
+    {% endif %}
+    {% if csv %}
+      <a href="/download/{{ csv.split('/')[-1] }}" class="button">Download Deep Scan CSV</a>
     {% endif %}
     <br>
-    <a href="/" class="button" style="margin-top:16px;">Back</a>
+    <a href="/bacnet" class="button" style="margin-top:16px;">Back to BACnet Scan</a>
   </div>
 </body>
 </html>
