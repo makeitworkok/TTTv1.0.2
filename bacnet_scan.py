@@ -8,7 +8,8 @@ from bacpypes.local.device import LocalDeviceObject
 from bacpypes.pdu import Address
 from bacpypes.core import run, stop
 from bacpypes.apdu import WhoIsRequest, IAmRequest, ReadPropertyRequest, ReadPropertyACK, ReadAccessSpecification, ReadPropertyMultipleRequest, ReadAccessResult
-from bacpypes.object import get_datatype
+from bacpypes.constructeddata import ArrayOf
+from bacpypes.object import ObjectIdentifier
 from bacpypes.iocb import IOCB
 
 OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
@@ -140,11 +141,11 @@ def bacnet_scan(timeout=TIMEOUT):
 
 def deep_scan_device(device_instance, address, timeout=5):
     """
-    Query all objects and properties from a BACnet device.
-    Returns a list of dicts (one per property).
+    Reduced deep scan: just read and save the objectList property from the device.
     """
+    print("Entered deep_scan_device")
     local_ip = get_eth0_ip()
-    DEEP_SCAN_PORT = 47809
+    DEEP_SCAN_PORT = BACNET_PORT
     device = LocalDeviceObject(
         objectName="TTTv1DeepScanner",
         objectIdentifier=DEVICE_ID + 1,
@@ -154,7 +155,6 @@ def deep_scan_device(device_instance, address, timeout=5):
     )
     app = BIPSimpleApplication(device, Address(f"{local_ip}:{DEEP_SCAN_PORT}"))
 
-    # Step 1: Read the object list
     object_list = []
     try:
         req = ReadPropertyRequest(
@@ -166,47 +166,58 @@ def deep_scan_device(device_instance, address, timeout=5):
         app.request_io(iocb)
         iocb.wait(timeout=timeout)
         ack = iocb.ioResponse
+        print(f"DEBUG: ack type: {type(ack)}, ack value: {repr(ack)}")
         if isinstance(ack, ReadPropertyACK):
-            object_list = ack.propertyValue.cast_out()
+            print("=== BACnet Deep Scan Debug ===")
+            print(f"type(ack.propertyValue): {type(ack.propertyValue)}")
+            print(f"repr(ack.propertyValue): {repr(ack.propertyValue)}")
+            print(f"dir(ack.propertyValue): {dir(ack.propertyValue)}")
+            print("Trying cast_out(list)...")
+            try:
+                object_list = ack.propertyValue.cast_out(list)
+                print(f"objectList received (cast_out(list)): {object_list}")
+            except Exception as e:
+                print(f"cast_out(list) failed: {e}")
+            print("Trying cast_out(tuple)...")
+            try:
+                object_list = ack.propertyValue.cast_out(tuple)
+                print(f"objectList received (cast_out(tuple)): {object_list}")
+            except Exception as e:
+                print(f"cast_out(tuple) failed: {e}")
+            print("Trying cast_out(str)...")
+            try:
+                object_list = ack.propertyValue.cast_out(str)
+                print(f"objectList received (cast_out(str)): {object_list}")
+            except Exception as e:
+                print(f"cast_out(str) failed: {e}")
+            print("Trying cast_out() with no args...")
+            try:
+                object_list = ack.propertyValue.cast_out()
+                print(f"objectList received (cast_out()): {object_list}")
+            except Exception as e:
+                print(f"cast_out() failed: {e}")
+            print("=== End BACnet Deep Scan Debug ===")
         else:
-            print("No response or error for objectList")
+            print(f"No response or error for objectList (ack={ack})")
+            return []
     except Exception as e:
         print(f"Failed to read objectList: {e}")
         return []
 
-    # Step 2: For each object, read common properties
-    results = []
-    for obj_id in object_list:
-        for prop in ["objectName", "presentValue", "description", "units"]:
-            try:
-                req = ReadPropertyRequest(
-                    objectIdentifier=obj_id,
-                    propertyIdentifier=prop,
-                    destination=Address(address),  # Always send to device's IP:47808
-                )
-                app.request(req)
-                ack = app.get_next_response(timeout=timeout)
-                if isinstance(ack, ReadPropertyACK):
-                    value = ack.propertyValue.cast_out()
-                else:
-                    value = ""
-            except Exception:
-                value = ""
-            results.append({
-                "object_type": obj_id[0],
-                "instance": obj_id[1],
-                "property": prop,
-                "value": value,
-            })
-    # Save to CSV
+    # Save just the object list to CSV
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = os.path.join(OUTPUT_DIR, f"deep_scan_{device_instance}_{timestamp}.csv")
+    fieldnames = ["object_type", "instance"]
     with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["object_type", "instance", "property", "value"])
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(results)
-    print(f"Deep scan complete for device {device_instance}. Results saved to {csv_path}")
-    return results, csv_path
+        for obj in object_list:
+            if isinstance(obj, (list, tuple)) and len(obj) == 2:
+                writer.writerow({"object_type": obj[0], "instance": obj[1]})
+            else:
+                writer.writerow({"object_type": str(obj), "instance": ""})
+    print(f"Object list for device {device_instance} saved to {csv_path}")
+    return object_list, csv_path
 
 
 if __name__ == "__main__":

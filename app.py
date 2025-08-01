@@ -159,9 +159,8 @@ def network():
         if "static ip_address=" in conf:
             mode = "static"
 
-    # Get current live IP and Gateway
-    current_ip = subprocess.getoutput("ip -4 addr show eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'")
-    current_ip = current_ip.splitlines()[0] if current_ip else ""
+    # Get current live IP and Gateway every time the page loads
+    current_ip = get_eth0_ip()
     current_gw = subprocess.getoutput("ip route | grep '^default' | awk '{print $3}'")
 
     # Split into octets (default to 0 if missing)
@@ -218,4 +217,5 @@ def download_file(filename):
 # --- Add your other routes (network, index, etc.) below ---
 
 if __name__ == "__main__":
+    print("Flask app started!")
     app.run(host="0.0.0.0", port=80)
