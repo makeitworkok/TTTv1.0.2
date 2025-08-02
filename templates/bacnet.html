@@ -27,16 +27,22 @@
         <tr>
           <th>Device Instance</th>
           <th>Address</th>
+          <th>Vendor</th>
+          <th>Model</th>
           <th>Deep Scan</th>
         </tr>
         {% for d in results.devices %}
         <tr>
           <td>{{ d.device_instance }}</td>
           <td>{{ d.address }}</td>
+          <td>{{ d.vendorName if d.vendorName and "Error" not in d.vendorName else "-" }}</td>
+          <td>{{ d.modelName if d.modelName and "Error" not in d.modelName else "-" }}</td>
           <td>
             <form method="POST" action="/bacnet_deep_scan">
               <input type="hidden" name="device_instance" value="{{ d.device_instance }}">
               <input type="hidden" name="address" value="{{ d.address }}">
+              <input type="hidden" name="vendorName" value="{{ d.vendorName }}">
+              <input type="hidden" name="modelName" value="{{ d.modelName }}">
               <button type="submit" class="button">Deep Scan</button>
             </form>
           </td>

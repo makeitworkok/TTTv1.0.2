@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
 import subprocess, csv, datetime, os, re, socket
 import threading
+import asyncio
 
 from bacnet_core import SingletonBACnetApp, whois_scan, deep_scan
+from bac0_scan import bacnet_scan, export_to_csv, bacnet_deep_scan, export_deep_scan_to_csv
 
 app = Flask(__name__)
 
@@ -15,17 +17,7 @@ def get_eth0_ip():
     ip = subprocess.getoutput("ip -4 addr show eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'")
     return ip.splitlines()[0] if ip else ""
 
-# --- BACnet Singleton Initialization (must be before any route uses bacnet_app) ---
-local_ip = get_eth0_ip()
-from bacnet_core import bacnet_app as _bacnet_app
-_bacnet_app = SingletonBACnetApp(local_ip)
-import bacnet_core
-bacnet_core.bacnet_app = _bacnet_app
 
-event_loop_thread = threading.Thread(target=_bacnet_app.run_forever, daemon=True)
-event_loop_thread.start()
-
-# --- ARP Scan ---
 def run_arp_scan_with_range(subnet, repeats=10):
     devices_dict = {}
     try:
@@ -179,34 +171,35 @@ def network():
                            ip_octets=ip_octets,
                            gw_octets=gw_octets)
 
-# --- BACnet Scan (with background thread and countdown) ---
 
-@app.route("/bacnet", methods=["GET", "POST"])
-def bacnet_page():
+@app.route("/bacnet_scan", methods=["GET", "POST"])
+def bacnet_scan_route():
+    results = {}
     if request.method == "POST":
-        devices = whois_scan(timeout=5)
-        # Save to CSV
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_path = os.path.join(OUTPUT_DIR, f"bacnet_scan_{timestamp}.csv")
-        with open(csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["device_instance", "address"])
-            writer.writeheader()
-            writer.writerows(devices)
-        return render_template("bacnet.html", results={"devices": devices, "csv": csv_path})
-    return render_template("bacnet.html", results={"devices": [], "csv": None})
+        # Run the BACnet scan and get results
+        scan_results = asyncio.run(bacnet_scan())
+        # Format results for template (devices list, CSV path, etc.)
+        results = {
+            "devices": [
+                {"device_instance": d["device_instance"], "address": d["address"], "vendorName": d.get("vendorName", "-"), "modelName": d.get("modelName", "-")}
+                for d in scan_results
+            ],
+            "csv": export_to_csv(scan_results)
+        }
+    return render_template("bacnet.html", results=results)
+
+@app.route("/download_csv")
+def download_csv():
+    path = request.args.get("path")
+    return send_file(path, as_attachment=True)
 
 @app.route("/bacnet_deep_scan", methods=["POST"])
-def bacnet_deep_scan():
+def bacnet_deep_scan_route():
     device_instance = request.form.get("device_instance")
     address = request.form.get("address")
-    results = deep_scan(device_instance, address)
-    # Save to CSV
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_path = os.path.join(OUTPUT_DIR, f"deep_scan_{device_instance}_{timestamp}.csv")
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["object_type", "instance", "property", "value"])
-        writer.writeheader()
-        writer.writerows(results)
+    results = asyncio.run(bacnet_deep_scan(device_instance, address))
+    # Only use the helper function for CSV export
+    csv_path = export_deep_scan_to_csv(results)
     return render_template("deep_scan_result.html", results=results, csv=csv_path)
 
 # --- Example: Download CSV Route (optional, if you want to serve CSVs directly) ---
