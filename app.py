@@ -3,7 +3,7 @@ import subprocess, csv, datetime, os, re, socket
 import threading
 import asyncio
 
-from bac0_scan import bacnet_scan, export_to_csv
+from bac0_scan import bacnet_scan, bacnet_quick_scan, export_to_csv
 
 
 app = Flask(__name__)
@@ -176,10 +176,13 @@ def network():
 def bacnet_scan_route():
     results = {}
     if request.method == "POST":
-        # Get current eth0 IP and build ip_with_mask
+        scan_type = request.form.get("scan_type", "full")
         eth0_ip = get_eth0_ip()
         ip_with_mask = f"{eth0_ip}/24" if eth0_ip else "0.0.0.0/24"
-        scan_results, networks_found = asyncio.run(bacnet_scan(ip_with_mask, return_networks=True))
+        if scan_type == "quick":
+            scan_results, networks_found = asyncio.run(bacnet_quick_scan(ip_with_mask, return_networks=True))
+        else:
+            scan_results, networks_found = asyncio.run(bacnet_scan(ip_with_mask, return_networks=True))
 
         # Only keep one entry per unique device_instance
         unique_devices = {}

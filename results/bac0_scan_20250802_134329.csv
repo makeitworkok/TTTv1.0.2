@@ -1,3 +1,0 @@
-device_instance,address,objectName,vendorName,modelName,description,systemStatus,firmwareRevision,location
-2749,192.168.0.56,BAScontrol22S,"Contemporary Control Systems, Inc.",BAScontrol,,operational,4.0.2.4,Error: Unknown property 192.168.0.56 device 2749 location
-777,192.168.0.78,BASRT-B030d3d,"Contemporary Control Systems, Inc.",BASRT-B,BACnet/IP to MS/TP Router,operational,3.0.13,testing

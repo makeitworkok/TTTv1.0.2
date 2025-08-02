@@ -126,6 +126,49 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
     bacnet.disconnect()  # <--- Properly disconnect BAC0 instance
     return results
 
+async def bacnet_quick_scan(ip_with_mask, return_networks=False):
+    bacnet = BAC0.lite(ip=ip_with_mask)
+    await asyncio.sleep(1)
+    bacnet.discover()
+    await asyncio.sleep(10)
+
+    discovered = getattr(bacnet, "discoveredDevices", {})
+    results = []
+
+    for key, info in discovered.items():
+        instance = info['object_instance'][1]
+        device_ip = str(info['address'])
+        network_number = info.get("network") or info.get("network_number") or ""
+
+        device_info = {}
+        for prop in ["vendorName", "modelName", "location"]:
+            try:
+                value = await bacnet.read(f"{device_ip} device {instance} {prop}")
+                device_info[prop] = value
+            except Exception:
+                device_info[prop] = None
+
+        results.append({
+            "device_instance": instance,
+            "device_ip": device_ip,
+            "network_number": network_number,
+            "vendorName": device_info["vendorName"],
+            "modelName": device_info["modelName"],
+            "location": device_info["location"]
+        })
+
+    if return_networks:
+        networks_found = set()
+        for info in discovered.values():
+            net = info.get("network") or info.get("network_number")
+            if net:
+                networks_found.add(str(net))
+        bacnet.disconnect()
+        return results, sorted(networks_found)
+
+    bacnet.disconnect()
+    return results
+
 def export_to_csv(results):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = os.path.join(OUTPUT_DIR, f"bac0_scan_{timestamp}.csv")

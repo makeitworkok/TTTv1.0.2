@@ -53,8 +53,10 @@
 <body>
   <h1>BACnet Who-Is Scan</h1>
   <div class="main-content">
-    <form method="POST">
-      <button id="start-scan" type="submit" class="button">Start Scan</button>
+    <form method="POST" id="scan-form">
+      <input type="hidden" name="scan_type" id="scan_type" value="full">
+      <button type="submit" class="button" id="start-scan">Start Full Scan</button>
+      <button type="button" class="button" id="quick-scan">Quick Scan</button>
     </form>
     <div id="progress-bar">
       <span>Scanning... Please wait.</span>
@@ -98,6 +100,12 @@
 
   <script>
     document.getElementById('start-scan').onclick = function() {
+      document.getElementById('scan_type').value = 'full';
+      document.getElementById('progress-bar').style.display = 'block';
+    };
+    document.getElementById('quick-scan').onclick = function() {
+      document.getElementById('scan_type').value = 'quick';
+      document.getElementById('scan-form').submit();
       document.getElementById('progress-bar').style.display = 'block';
     };
   </script>

@@ -1,7 +1,9 @@
 # TTTv1.0.2 Dashboard
 
+This project began as a way to bridge a gap I kept seeing in the field—most HVAC controls technicians and account managers aren't deeply familiar with IT or systems integration. I’ve spent a lot of time trying to make this tool practical, accessible, and field-ready. My hope is that it can make networking and BACnet diagnostics easier for those of us who didn’t come up through the IT side of the house. If it helps you or your team get a clearer picture of what’s going on in the network, then it’s doing its job.
+
 A web-based dashboard for network scanning, BACnet device discovery (with deep scan), and network configuration.  
-Designed for easy deployment on Linux (e.g., Raspberry Pi).
+Built with simplicity in mind, especially for those working in the trenches of HVAC controls and building automation. It’s meant to run cleanly on a Raspberry Pi with minimal setup.
 
 ---
 
@@ -52,7 +54,7 @@ sudo apt-get install arp-scan avahi-daemon
 ```sh
 sudo python3 app.py
 ```
-- Visit `http://tttv1.local` in your browser (recommended), or use `http://<device-ip>`.
+- Fire up your browser and head to `http://tttv1.local` (or the Pi’s IP address). If everything’s working, you’ll be looking at your network in no time.
 
 ---
 
@@ -185,20 +187,20 @@ Connect to it and access the dashboard at `http://192.168.50.1` or `http://tttv1
 ```
 TTTv1.0.2/
 ├── app.py                # Main Flask app and routes
-├── bac0_scan.py          # BACnet scan logic (deep scan built-in)
-├── bacnet_core.py        # BACnet singleton and legacy scan logic
+├── bac0_scan.py          # BACnet scan logic (deep scan built-in, uses BAC0)
 ├── requirements.txt      # Python dependencies
 ├── templates/            # HTML templates for Flask
-│   ├── index.html
-│   ├── network.html
-│   ├── bacnet.html
-│   └── ... (other pages)
+│   ├── index.html        # Dashboard landing page
+│   ├── network.html      # Network settings/configuration page
+│   ├── bacnet.html       # BACnet scan and results page
+│   ├── scan.html         # ARP network scan page
+│   └── ...               # (other HTML pages)
 ├── results/              # CSV output files from scans
-│   └── bacnet_scan_*.csv
+│   ├── bacnet_scan_*.csv
 │   └── arp_scan_*.csv
-├── static/               # Static files (CSS, JS, images)
+├── static/               # Static files (CSS, JS, images, spinner, etc.)
 ├── README.md             # This documentation
-└── ...                   # Other supporting files
+└── ...                   # Other supporting files (legacy code, helpers, etc.)
 ```
 
 ---
