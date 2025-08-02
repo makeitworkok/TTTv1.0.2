@@ -3,74 +3,54 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Network Settings - TTTv1.0.2 Dashboard</title>
-  <style>
-    :root {
-      --trane-red: #e03a3e;
-      --trane-dark: #222;
-      --trane-gray: #f4f4f4;
-      --trane-light-gray: #e6e6e6;
-      --trane-accent: #ffb600;
+    <style>
+    body { background: #e6e6e6; color: #222; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
+    h1 { color: #e03a3e; margin-top: 32px; font-size: 2em; }
+    h2 { margin-top: 32px; margin-bottom: 16px; }
+    .main-content { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); max-width: 700px; width: 100%; padding: 32px 16px; margin: 32px auto; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th, td { border: 1px solid #bbb; padding: 6px 10px; text-align: left; }
+    th { background: #f4f4f4; }
+    tr:nth-child(even) { background: #fafafa; }
+    tr:hover { background: #ffe9b3; }
+    .button { display: inline-block; margin-top: 12px; padding: 10px 28px; background: #e03a3e; color: #fff; border-radius: 5px; text-decoration: none; font-size: 1em; transition: background 0.2s, color 0.2s; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 2px 6px rgba(224,58,62,0.08);}
+    .button:hover { background: #ffb600; color: #222; }
+    form { display: inline; }
+    #progress-bar {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.95em;
     }
-    body {
-      background: var(--trane-light-gray);
-      color: var(--trane-dark);
-      font-family: 'Segoe UI', Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 {
-      margin: 32px 0 16px 0;
-      font-size: 2em;
-      letter-spacing: 1px;
-      color: var(--trane-red);
-    }
-    .main-content {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-      max-width: 400px;
-      width: 100%;
-      padding: 32px 16px;
-      margin-bottom: 32px;
-      box-sizing: border-box;
-    }
-    a.button {
+    .loader {
       display: inline-block;
-      margin-top: 12px;
-      padding: 10px 28px;
-      background: var(--trane-red);
-      color: #fff;
-      border-radius: 5px;
-      text-decoration: none;
-      font-size: 1em;
-      transition: background 0.2s;
-      font-weight: 500;
-      box-shadow: 0 1px 4px rgba(224,58,62,0.08);
+      width: 18px;
+      height: 18px;
+      border: 3px solid #e03a3e;
+      border-radius: 50%;
+      border-top: 3px solid #fff;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
     }
-    a.button:hover {
-      background: var(--trane-accent);
-      color: var(--trane-dark);
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
     }
-    @media (max-width: 500px) {
-      .main-content {
-        max-width: 98vw;
-        font-size: 0.98em;
-      }
-      h1 {
-        font-size: 1.3em;
-      }
+    @media (max-width: 600px) {
+      .main-content { padding: 12px 2px; }
+      table, th, td { font-size: 0.95em; }
+      table { display: block; overflow-x: auto; }
+      th, td { white-space: nowrap; }
+      h1 { font-size: 1.3em; }
+      .button { width: 100%; box-sizing: border-box; }
     }
   </style>
 <title>ARP Scan</title>
-<style>
-  .octet-control { display: inline-block; margin: 5px; text-align: center; }
-  .octet-number { font-size: 1.5em; margin: 5px; width: 50px; text-align: center; }
-  button { width: 40px; height: 40px; }
-</style>
+
 <script>
 function increment(id) {
   var input = document.getElementById(id);
@@ -113,6 +93,7 @@ function decrement(id) {
 
 {% if devices %}
 <h2>Discovered Devices</h2>
+ <div style="overflow-x:auto;">
 <table border="1">
 <thead>
   <tr>
@@ -133,6 +114,7 @@ function decrement(id) {
 {% endfor %}
 </tbody>
 </table>
+</div>
 {% if csv_path %}
 <p><a href="/download/{{ csv_path.split('/')[-1] }}">Download CSV</a></p>
 {% endif %}

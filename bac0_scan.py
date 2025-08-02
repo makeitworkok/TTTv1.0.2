@@ -3,100 +3,127 @@ import asyncio
 import csv
 import datetime
 import os
+import socket
+import fcntl
+import struct
 
 OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-_bacnet_instance = None
+def get_ip_address(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+        s.fileno(),
+        0x8915,  # SIOCGIFADDR
+        struct.pack('256s', ifname[:15].encode('utf-8'))
+    )[20:24])
 
-async def get_bacnet(ip_with_mask="192.168.0.63/24"):
+# Usage:
+eth0_ip = get_ip_address('eth0')
+ip_with_mask = f"{eth0_ip}/24"
+
+# _bacnet_instance = None
+
+''' async def get_bacnet(ip_with_mask):
     global _bacnet_instance
     if _bacnet_instance is None:
         _bacnet_instance = BAC0.lite(ip=ip_with_mask)
         await asyncio.sleep(1)  # Give BAC0 time to initialize
     return _bacnet_instance
-
-async def bacnet_scan(ip_with_mask="192.168.0.63/24", extra_props=None):
-    bacnet = await get_bacnet(ip_with_mask)
+'''
+async def bacnet_scan(ip_with_mask, return_networks=False):
+    bacnet = BAC0.lite(ip=ip_with_mask)
+    await asyncio.sleep(1)  # Give BAC0 time to initialize
     bacnet.discover()
     await asyncio.sleep(10)
 
     discovered = getattr(bacnet, "discoveredDevices", {})
     results = []
-    device_props = [
-        "objectName", "vendorName", "modelName", "description",
-        "systemStatus", "firmwareRevision", "location"
-    ]
-    if extra_props:
-        device_props.extend(extra_props)
 
+    props = ["objectName", "description", "units", "presentValue", "outOfService"]
     object_types = [
         "analogInput", "analogOutput", "analogValue",
-        "binaryInput", "binaryOutput", "binaryValue"
+        "binaryInput", "binaryOutput", "binaryValue",
+        "multiStateInput", "multiStateOutput", "multiStateValue"
     ]
-    max_instance = 4  # Adjust as needed
 
     for key, info in discovered.items():
         instance = info['object_instance'][1]
         device_ip = str(info['address'])
-        # Gather device-level info
+        network_number = info.get("network") or info.get("network_number") or ""
+
+        # Read device-level info
         device_info = {}
-        for prop in device_props:
+        for prop in ["vendorName", "modelName", "location"]:
             try:
                 value = await bacnet.read(f"{device_ip} device {instance} {prop}")
                 device_info[prop] = value
-            except Exception as e:
-                device_info[prop] = f"Error: {e}"
+            except Exception:
+                device_info[prop] = None
 
-        # Gather all objects/points for this device
+        # Try objectList first
         objects = []
-        for obj_type in object_types:
-            if obj_type.startswith("analog"):
-                props = ["objectName", "description", "presentValue"]
-            else:
-                props = ["objectName", "description", "units", "presentValue"]
-            if extra_props:
-                props.extend(extra_props)
-            for idx in range(1, max_instance + 1):
-                obj_found = False
-                obj_data = {
+        try:
+            object_list = await bacnet.read(f"{device_ip} device {instance} objectList")
+            for obj_type, obj_instance in object_list:
+                obj_row = {
+                    "device_instance": instance,
+                    "device_ip": device_ip,
+                    "network_number": network_number,
                     "object_type": obj_type,
-                    "object_instance": idx,
+                    "object_instance": obj_instance,
+                    "vendorName": device_info["vendorName"],
+                    "modelName": device_info["modelName"],
+                    "location": device_info["location"]
                 }
-                try:
-                    # Probe with objectName first
-                    value = await bacnet.read(f"{device_ip} {obj_type} {idx} objectName")
-                    obj_data["objectName"] = value
-                    obj_found = True
-                except Exception:
-                    continue  # Skip this object if objectName fails
                 for prop in props:
-                    if prop == "objectName":
-                        continue
                     try:
-                        value = await bacnet.read(f"{device_ip} {obj_type} {idx} {prop}")
-                        obj_data[prop] = value
+                        value = await bacnet.read(f"{device_ip} {obj_type} {obj_instance} {prop}")
+                        obj_row[prop] = value
                     except Exception:
-                        obj_data[prop] = None
-                if obj_found:
-                    objects.append(obj_data)
+                        obj_row[prop] = None
+                objects.append(obj_row)
+        except Exception:
+            # Fallback: probe common object types/instances
+            for obj_type in object_types:
+                if obj_type.startswith("analog"):
+                    scan_props = ["objectName", "description", "presentValue", "outOfService"]
+                else:
+                    scan_props = ["objectName", "description", "units", "presentValue", "outOfService"]
+                for idx in range(1, 10):
+                    obj_found = False
+                    obj_row = {
+                        "device_instance": instance,
+                        "device_ip": device_ip,
+                        "network_number": network_number,
+                        "object_type": obj_type,
+                        "object_instance": idx,
+                        "vendorName": device_info["vendorName"],
+                        "modelName": device_info["modelName"],
+                        "location": device_info["location"]
+                    }
+                    for prop in scan_props:
+                        try:
+                            value = await bacnet.read(f"{device_ip} {obj_type} {idx} {prop}")
+                            obj_row[prop] = value
+                            obj_found = True
+                        except Exception:
+                            obj_row[prop] = None
+                    if obj_found:
+                        objects.append(obj_row)
 
-        device_data = {
-            "device_instance": instance,
-            "address": device_ip,
-            **device_info,
-            "objects": objects
-        }
-        results.append(device_data)
+        results.extend(objects)
 
-    # Clean up vendor/model for display
-    for device in results:
-        for key in ["vendorName", "modelName"]:
-            val = device.get(key, "")
-            if not val or "Error" in str(val):
-                device[key] = "-"
-            else:
-                device[key] = str(val)
+    if return_networks:
+        networks_found = set()
+        for info in discovered.values():
+            net = info.get("network") or info.get("network_number")
+            if net:
+                networks_found.add(str(net))
+        bacnet.disconnect()  # <--- Properly disconnect BAC0 instance
+        return results, sorted(networks_found)
+
+    bacnet.disconnect()  # <--- Properly disconnect BAC0 instance
     return results
 
 def export_to_csv(results):
@@ -104,9 +131,19 @@ def export_to_csv(results):
     csv_path = os.path.join(OUTPUT_DIR, f"bac0_scan_{timestamp}.csv")
     with open(csv_path, "w", newline="") as f:
         fieldnames = [
-            "device_instance", "address",
-            "objectName", "vendorName", "modelName", "description",
-            "systemStatus", "firmwareRevision", "location"
+            "device_ip",
+            "device_instance",
+            "vendorName",
+            "network_number",
+            "location",
+            "modelName",
+            "object_instance",
+            "objectName",
+            "description",
+            "presentValue",
+            "units",
+            "object_type",
+            "outOfService"
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -115,59 +152,3 @@ def export_to_csv(results):
             writer.writerow(row)
     return csv_path
 
-async def bacnet_deep_scan(device_instance, address, extra_props=None):
-    bacnet = await get_bacnet()
-    object_types = [
-        "analogInput", "analogOutput", "analogValue",
-        "binaryInput", "binaryOutput", "binaryValue"
-    ]
-    results = []
-    max_instance = 4  # Adjust as needed for your site
-
-    for obj_type in object_types:
-        # 'units' is usually only for analogs
-        if obj_type.startswith("analog"):
-            props = ["objectName", "description", "presentValue"]
-        else:
-            props = ["objectName", "description", "units", "presentValue"]
-        if extra_props:
-            props.extend(extra_props)
-        for idx in range(1, max_instance + 1):
-            obj_found = False
-            obj_data = {
-                "object_type": obj_type,
-                "object_instance": idx,
-            }
-            for prop in props:
-                try:
-                    value = await bacnet.read(f"{address} {obj_type} {idx} {prop}")
-                    obj_data[prop] = value
-                    obj_found = True
-                except Exception:
-                    obj_data[prop] = None
-            if obj_found:
-                results.append(obj_data)
-                print(f"Reading: {address} {obj_type} {idx} {prop}")
-    if not results:
-        results.append({
-            "object_type": "device",
-            "object_instance": device_instance,
-            "property": "error",
-            "value": "No objects found or device did not respond."
-        })
-    print(f"Deep scan for address={address}, device_instance={device_instance}")
-    return results
-
-def export_deep_scan_to_csv(results):
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_path = os.path.join(OUTPUT_DIR, f"bacnet_deep_scan_{timestamp}.csv")
-    # Collect all possible keys from results for fieldnames
-    all_keys = set()
-    for row in results:
-        all_keys.update(row.keys())
-    fieldnames = list(all_keys)
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(results)
-    return csv_path

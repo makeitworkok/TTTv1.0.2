@@ -4,134 +4,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TTTv1.0.2 Dashboard</title>
   <style>
-    /* Trane-inspired color palette */
-    :root {
-      --trane-red: #e03a3e;
-      --trane-dark: #222;
-      --trane-gray: #f4f4f4;
-      --trane-light-gray: #e6e6e6;
-      --trane-accent: #ffb600;
-    }
-    body {
-      background: var(--trane-light-gray);
-      color: var(--trane-dark);
-      font-family: 'Segoe UI', Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 {
-      margin: 32px 0 16px 0;
-      font-size: 2em;
-      letter-spacing: 1px;
-      color: var(--trane-red);
-    }
-    .tabs {
-      display: flex;
-      justify-content: center;
-      width: 100%;
-      max-width: 400px;
-      margin-bottom: 24px;
-      border-radius: 8px 8px 0 0;
-      overflow: hidden;
-      background: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
+    body { background: #e6e6e6; color: #222; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
+    h1 { color: #e03a3e; margin-top: 32px; font-size: 2em; }
+    h2 { margin-top: 32px; margin-bottom: 16px; }
+    .main-content { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); max-width: 700px; width: 100%; padding: 32px 16px; margin: 32px auto; }
+    .tabs { display: flex; flex-wrap: wrap; margin-bottom: 24px; }
     .tab {
-      flex: 1;
-      padding: 14px 0;
+      flex: 1 1 120px;
+      background: #fff;
+      border: 1px solid #e03a3e;
+      border-bottom: none;
+      color: #e03a3e;
+      padding: 12px 0;
       text-align: center;
       cursor: pointer;
-      background: #fff;
-      color: var(--trane-dark);
-      border: none;
-      outline: none;
+      font-weight: 500;
       font-size: 1em;
       transition: background 0.2s, color 0.2s;
+      border-radius: 8px 8px 0 0;
+      margin-right: 2px;
     }
     .tab.active {
-      background: var(--trane-red);
+      background: #e03a3e;
       color: #fff;
-      font-weight: bold;
+      border-bottom: 2px solid #fff;
+      z-index: 2;
     }
+    .tab:last-child { margin-right: 0; }
     .tab-content {
       display: none;
       background: #fff;
-      padding: 32px 16px;
       border-radius: 0 0 8px 8px;
-      max-width: 400px;
-      width: 100%;
-      box-sizing: border-box;
-      min-height: 120px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-      color: var(--trane-dark);
+      padding: 24px 8px 8px 8px;
+      margin-bottom: 32px;
+      min-height: 120px;
     }
-    .tab-content.active {
-      display: block;
-    }
-    .tab-content a {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 10px 28px;
-      background: var(--trane-red);
-      color: #fff;
-      border-radius: 5px;
-      text-decoration: none;
-      font-size: 1em;
-      transition: background 0.2s;
-      font-weight: 500;
-      box-shadow: 0 1px 4px rgba(224,58,62,0.08);
-    }
-    .tab-content a:hover {
-      background: var(--trane-accent);
-      color: var(--trane-dark);
-    }
-    @media (max-width: 500px) {
-      .tabs, .tab-content {
-        max-width: 98vw;
-        font-size: 0.98em;
-      }
-      h1 {
-        font-size: 1.3em;
-      }
+    .tab-content.active { display: block; }
+    .button { display: inline-block; margin-top: 12px; padding: 10px 28px; background: #e03a3e; color: #fff; border-radius: 5px; text-decoration: none; font-size: 1em; transition: background 0.2s, color 0.2s; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 2px 6px rgba(224,58,62,0.08);}
+    .button:hover { background: #ffb600; color: #222; }
+    @media (max-width: 600px) {
+      .main-content { padding: 12px 2px; }
+      .tabs { flex-direction: column; }
+      .tab { border-radius: 8px 8px 0 0; margin-bottom: 2px; }
+      h1 { font-size: 1.3em; }
+      .button { width: 100%; box-sizing: border-box; }
     }
   </style>
 </head>
 <body>
   <h1>TTTv1.0.2 Dashboard</h1>
-  <div class="tabs">
-    <button class="tab active" onclick="showTab(0)">Network Scan</button>
-    <button class="tab" onclick="showTab(1)">Network Settings</button>
-    <button class="tab" onclick="showTab(2)">BACnet Scan</button>
-    <button class="tab" onclick="showTab(3)">About</button>
-  </div>
-  <div class="tab-content active">
-    <h2>Run Network Scan</h2>
-    <p>Scan your network for connected devices and vulnerabilities.</p>
-    <a href="/scan">Start Scan</a>
-  </div>
-  <div class="tab-content">
-    <h2>Network Settings</h2>
-    <p>Configure your network preferences and view current settings.</p>
-    <a href="/network">Go to Settings</a>
-  </div>
-  <div class="tab-content">
-    <h2>Run BACnet Scan</h2>
-    <p>Scan for BACnet devices and analyze building automation systems.</p>
-    <form method="POST" action="/bacnet_scan">
-      <button type="submit" class="button">Start BACnet Scan</button>
-    </form>
-  </div>
-  <div class="tab-content">
-    <h2>About</h2>
-    <p>
-      <strong>TTTv1.0.2 Dashboard</strong> is a tool for scanning and managing your network, including BACnet devices.<br>
-      Inspired by Trane's design language.<br>
-      <small>&copy; 2025 MakeItWorkOK</small>
-    </p>
+  <div class="main-content">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab(0)">Network Scan</button>
+      <button class="tab" onclick="showTab(1)">Network Settings</button>
+      <button class="tab" onclick="showTab(2)">BACnet Scan</button>
+      <button class="tab" onclick="showTab(3)">About</button>
+    </div>
+    <div class="tab-content active">
+      <h2>Run Network Scan</h2>
+      <p>Scan your network for connected devices and vulnerabilities.</p>
+      <a href="/scan" class="button">Start Scan</a>
+    </div>
+    <div class="tab-content">
+      <h2>Network Settings</h2>
+      <p>Configure your network preferences and view current settings.</p>
+      <a href="/network" class="button">Go to Settings</a>
+    </div>
+    <div class="tab-content">
+      <h2>Run BACnet Scan</h2>
+      <p>Scan for BACnet devices and analyze building automation systems.</p>
+      <a href="/bacnet_scan" class="button">Go to BACnet Scan</a>
+    </div>
+    <div class="tab-content">
+      <h2>About</h2>
+      <p>
+        <strong>TTTv1.0.2 Dashboard</strong> is a tool for scanning and managing your network, including BACnet devices.<br>
+        Inspired by Trane's design language.<br>
+        <small>&copy; 2025 MakeItWorkOK</small>
+      </p>
+    </div>
   </div>
   <script>
     function showTab(idx) {

@@ -5,31 +5,76 @@
   <title>BACnet Who-Is Scan</title>
   <style>
     body { background: #e6e6e6; color: #222; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
-    h1 { color: #e03a3e; margin-top: 32px; }
+    h1 { color: #e03a3e; margin-top: 32px; font-size: 2em; }
+    h2 { margin-top: 32px; margin-bottom: 16px; }
     .main-content { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); max-width: 700px; width: 100%; padding: 32px 16px; margin: 32px auto; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     th, td { border: 1px solid #bbb; padding: 6px 10px; text-align: left; }
     th { background: #f4f4f4; }
-    .button { display: inline-block; margin-top: 12px; padding: 10px 28px; background: #e03a3e; color: #fff; border-radius: 5px; text-decoration: none; font-size: 1em; transition: background 0.2s; font-weight: 500; border: none; cursor: pointer; }
+    tr:nth-child(even) { background: #fafafa; }
+    tr:hover { background: #ffe9b3; }
+    .button { display: inline-block; margin-top: 12px; padding: 10px 28px; background: #e03a3e; color: #fff; border-radius: 5px; text-decoration: none; font-size: 1em; transition: background 0.2s, color 0.2s; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 2px 6px rgba(224,58,62,0.08);}
     .button:hover { background: #ffb600; color: #222; }
     form { display: inline; }
+    #progress-bar {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.95em;
+    }
+    .loader {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid #e03a3e;
+      border-radius: 50%;
+      border-top: 3px solid #fff;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+    @media (max-width: 600px) {
+      .main-content { padding: 12px 2px; }
+      table, th, td { font-size: 0.95em; }
+      table { display: block; overflow-x: auto; }
+      th, td { white-space: nowrap; }
+      h1 { font-size: 1.3em; }
+      .button { width: 100%; box-sizing: border-box; }
+    }
   </style>
 </head>
 <body>
   <h1>BACnet Who-Is Scan</h1>
   <div class="main-content">
     <form method="POST">
-      <button type="submit" class="button">Start Scan</button>
+      <button id="start-scan" type="submit" class="button">Start Scan</button>
     </form>
+    <div id="progress-bar">
+      <span>Scanning... Please wait.</span>
+      <span class="loader"></span>
+    </div>
+    {% if results.networks_found %}
+      <div style="margin-bottom: 1em;">
+        <b>Networks found:</b> {{ results.networks_found|join(', ') }}<br>
+        <b>Devices found:</b> {{ results.device_count }}
+      </div>
+    {% endif %}
     <h2>Discovered Devices</h2>
     {% if results.devices %}
+      <div style="overflow-x:auto;">
       <table>
         <tr>
           <th>Device Instance</th>
           <th>Address</th>
           <th>Vendor</th>
           <th>Model</th>
-          <th>Deep Scan</th>
         </tr>
         {% for d in results.devices %}
         <tr>
@@ -37,18 +82,10 @@
           <td>{{ d.address }}</td>
           <td>{{ d.vendorName if d.vendorName and "Error" not in d.vendorName else "-" }}</td>
           <td>{{ d.modelName if d.modelName and "Error" not in d.modelName else "-" }}</td>
-          <td>
-            <form method="POST" action="/bacnet_deep_scan">
-              <input type="hidden" name="device_instance" value="{{ d.device_instance }}">
-              <input type="hidden" name="address" value="{{ d.address }}">
-              <input type="hidden" name="vendorName" value="{{ d.vendorName }}">
-              <input type="hidden" name="modelName" value="{{ d.modelName }}">
-              <button type="submit" class="button">Deep Scan</button>
-            </form>
-          </td>
         </tr>
         {% endfor %}
       </table>
+      </div>
       {% if results.csv %}
         <a href="/download/{{ results.csv.split('/')[-1] }}" class="button">Download Devices CSV</a>
       {% endif %}
@@ -58,5 +95,11 @@
     <br>
     <a href="/" class="button" style="margin-top:16px;">Back</a>
   </div>
+
+  <script>
+    document.getElementById('start-scan').onclick = function() {
+      document.getElementById('progress-bar').style.display = 'block';
+    };
+  </script>
 </body>
 </html>
