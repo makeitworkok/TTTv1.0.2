@@ -41,7 +41,7 @@ async def main():
 
     print(f"\nTotal discovered objects: {len(discovered)}")
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
 
 if __name__ == "__main__":
     asyncio.run(main())

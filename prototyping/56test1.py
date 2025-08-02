@@ -129,7 +129,7 @@ async def main():
             writer.writerow(row)
     print(f"\nResults written to {csv_path}")
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -31,7 +31,7 @@ async def main():
         except Exception as e:
             print(f"Error reading objectList for device {instance}: {e}")
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
 
 if __name__ == "__main__":
     asyncio.run(main())
