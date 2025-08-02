@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Network Settings - TTTv1.0.2 Dashboard</title>
-    <style>
+  <title>ARP Scan - TTTv1.0.2 Dashboard</title>
+  <style>
     body { background: #e6e6e6; color: #222; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
     h1 { color: #e03a3e; margin-top: 32px; font-size: 2em; }
     h2 { margin-top: 32px; margin-bottom: 16px; }
@@ -40,6 +40,8 @@
       0% { transform: rotate(0deg);}
       100% { transform: rotate(360deg);}
     }
+    .octet-control { display: inline-block; margin-right: 8px; text-align: center; }
+    .octet-number { width: 38px; text-align: center; }
     @media (max-width: 600px) {
       .main-content { padding: 12px 2px; }
       table, th, td { font-size: 0.95em; }
@@ -47,79 +49,76 @@
       th, td { white-space: nowrap; }
       h1 { font-size: 1.3em; }
       .button { width: 100%; box-sizing: border-box; }
+      .octet-control { margin-bottom: 8px; }
     }
   </style>
-<title>ARP Scan</title>
-
-<script>
-function increment(id) {
-  var input = document.getElementById(id);
-  var val = parseInt(input.value) || 0;
-  input.value = (val + 1) % 256;
-}
-function decrement(id) {
-  var input = document.getElementById(id);
-  var val = parseInt(input.value) || 0;
-  input.value = (val - 1 + 256) % 256;
-}
-</script>
 </head>
 <body>
-<h1>ARP Scan</h1>
+  <h1>ARP Scan</h1>
+  <div class="main-content">
+    <!-- Subnet Selector -->
+    <form method="POST">
+      <h3>Set Scan Range</h3>
+      {% for i in range(4) %}
+      <div class="octet-control">
+        <input type="text" id="oct{{i}}" name="octet" class="octet-number" value="{{ base_ip[i] }}">
+      </div>
+      {% endfor %}
+      <select name="cidr">
+        {% for n in [24,25,26,27,28] %}
+          <option value="{{n}}" {% if cidr == n|string %}selected{% endif %}>/{{n}}</option>
+        {% endfor %}
+      </select>
+      <input type="submit" value="Save Range" class="button">
+    </form>
 
-<!-- Subnet Selector -->
-<form method="POST">
-  <h3>Set Scan Range</h3>
-  {% for i in range(4) %}
-  <div class="octet-control">
-    <button type="button" onclick="increment('oct{{i}}')">▲</button><br>
-    <input type="text" id="oct{{i}}" name="octet" class="octet-number" value="{{ base_ip[i] }}"><br>
-    <button type="button" onclick="decrement('oct{{i}}')">▼</button>
+    <!-- Run Scan -->
+    <form method="POST" style="margin-top: 20px;">
+      <input type="hidden" name="scan_now" value="1">
+      <button type="submit" class="button" id="start-scan">Run Scan</button>
+    </form>
+
+    <div id="progress-bar">
+      <span>Scanning... Please wait.</span>
+      <span class="loader"></span>
+    </div>
+
+    {% if devices %}
+    <h2>Discovered Devices</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>IP Address</th>
+            <th>MAC Address</th>
+            <th>Hostname</th>
+            <th>Vendor</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for ip, mac, hostname, vendor in devices %}
+          <tr>
+            <td>{{ ip }}</td>
+            <td>{{ mac }}</td>
+            <td>{{ hostname }}</td>
+            <td>{{ vendor }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if csv_path %}
+      <a href="/download/{{ csv_path.split('/')[-1] }}" class="button">Download CSV</a>
+    {% endif %}
+    {% endif %}
+
+    <br>
+    <a href="/" class="button">Back</a>
   </div>
-  {% endfor %}
-  <select name="cidr">
-    {% for n in [24,25,26,27,28] %}
-      <option value="{{n}}" {% if cidr == n|string %}selected{% endif %}>/{{n}}</option>
-    {% endfor %}
-  </select>
-  <input type="submit" value="Save Range">
-</form>
-
-<!-- Run Scan -->
-<form method="POST" style="margin-top: 20px;">
-  <input type="hidden" name="scan_now" value="1">
-  <button type="submit">Run Scan</button>
-</form>
-
-{% if devices %}
-<h2>Discovered Devices</h2>
- <div style="overflow-x:auto;">
-<table border="1">
-<thead>
-  <tr>
-    <th>IP Address</th>
-    <th>MAC Address</th>
-    <th>Hostname</th>
-    <th>Vendor</th>
-  </tr>
-</thead>
-<tbody>
-{% for ip, mac, hostname, vendor in devices %}
-  <tr>
-    <td>{{ ip }}</td>
-    <td>{{ mac }}</td>
-    <td>{{ hostname }}</td>
-    <td>{{ vendor }}</td>
-  </tr>
-{% endfor %}
-</tbody>
-</table>
-</div>
-{% if csv_path %}
-<p><a href="/download/{{ csv_path.split('/')[-1] }}">Download CSV</a></p>
-{% endif %}
-{% endif %}
-
-<p><a href="/">Back</a></p>
+  <script>
+    document.getElementById('start-scan').onclick = function() {
+      document.getElementById('progress-bar').style.display = 'block';
+    };
+  </script>
 </body>
 </html>

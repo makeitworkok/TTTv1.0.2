@@ -3,7 +3,6 @@ import subprocess, csv, datetime, os, re, socket
 import threading
 import asyncio
 
-from bacnet_core import SingletonBACnetApp, whois_scan, deep_scan
 from bac0_scan import bacnet_scan, export_to_csv
 
 
