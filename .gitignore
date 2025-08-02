@@ -1,8 +1,1 @@
-results/arp_scan_20250727_173048.csv
-results/arp_scan_20250727_175100.csv
-results/arp_scan_20250727_175204.csv
-results/bacnet_scan_20250727_174617.csv
-results/bacnet_scan_20250727_174802.csv
-results/bacnet_scan_20250727_175308.csv
-results/bacnet_scan_20250727_180028.csv
-results/bacnet_scan_20250727_180243.csv
+results/**
