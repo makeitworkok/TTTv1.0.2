@@ -1,23 +1,24 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
 import subprocess, csv, datetime, os, re, socket
-import threading
 import asyncio
 
 from bac0_scan import bacnet_scan, bacnet_quick_scan, export_to_csv
 
-
 app = Flask(__name__)
 
+# Directory to store scan results
 OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# File to store the selected scan range for ARP scan
 SCAN_RANGE_FILE = "/tmp/scan_range.txt"
 
+# Get the current IP address of eth0
 def get_eth0_ip():
     ip = subprocess.getoutput("ip -4 addr show eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'")
     return ip.splitlines()[0] if ip else ""
 
-
+# Run ARP scan on the specified subnet, repeat for reliability
 def run_arp_scan_with_range(subnet, repeats=10):
     devices_dict = {}
     try:
@@ -37,12 +38,12 @@ def run_arp_scan_with_range(subnet, repeats=10):
                 if line and ":" in line and line.split()[0].split('.')[0].isdigit():
                     parts = line.split()
                     ip, mac = parts[0], parts[1]
-                    # Hostname lookup
+                    # Try to resolve hostname
                     try:
                         hostname = socket.gethostbyaddr(ip)[0]
                     except Exception:
                         hostname = ""
-                    # Vendor lookup
+                    # Try to resolve vendor
                     try:
                         vendor = mac_lookup.lookup(mac) if mac_lookup else ""
                     except Exception:
@@ -55,6 +56,7 @@ def run_arp_scan_with_range(subnet, repeats=10):
 
     devices = list(devices_dict.values())
 
+    # Save results to CSV
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = os.path.join(OUTPUT_DIR, f"arp_scan_{timestamp}.csv")
     with open(csv_path, "w", newline="") as f:
@@ -63,6 +65,7 @@ def run_arp_scan_with_range(subnet, repeats=10):
         writer.writerows(devices)
     return devices, csv_path
 
+# Get the current scan range for ARP scan
 def get_scan_range():
     # Default to 192.168.0.0/24 if not set
     if not os.path.exists(SCAN_RANGE_FILE):
@@ -70,16 +73,21 @@ def get_scan_range():
     with open(SCAN_RANGE_FILE, "r") as f:
         return f.read().strip() or "192.168.0.0/24"
 
+# Set the scan range for ARP scan
 def set_scan_range(subnet):
     with open(SCAN_RANGE_FILE, "w") as f:
         f.write(subnet)
 
+# --- Flask Routes ---
+
 @app.route("/")
 def home():
+    # Dashboard landing page
     return render_template("index.html")
 
 @app.route("/scan", methods=["GET", "POST"])
 def scan():
+    # ARP network scan page
     subnet = get_scan_range()
     devices, csv_path = [], None
 
@@ -102,6 +110,7 @@ def scan():
 
 @app.route("/download/<filename>")
 def download(filename):
+    # Download CSV file by filename
     return send_file(os.path.join(OUTPUT_DIR, filename), as_attachment=True)
 
 # --- Network Config Page ---
@@ -109,6 +118,7 @@ def download(filename):
 def network():
     config_file = "/etc/dhcpcd.conf"
 
+    # Set eth0 to DHCP mode
     def set_dhcp():
         # Remove static config for eth0 entirely
         with open(config_file, "r") as f:
@@ -119,6 +129,7 @@ def network():
                     f.write(line)
         subprocess.run(["sudo", "systemctl", "restart", "dhcpcd"])
 
+    # Set eth0 to static mode with given IP/mask/gateway
     def set_static(ip, mask, gateway):
         with open(config_file, "r") as f:
             lines = f.readlines()
@@ -140,11 +151,12 @@ def network():
             ip = request.form.get("ip")
             mask = request.form.get("mask", "24")
             gateway = request.form.get("gateway")
+            # Validate IP and gateway format
             if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip) and re.match(r"^\d{1,3}(\.\d{1,3}){3}$", gateway):
                 set_static(ip, mask, gateway)
         return redirect(url_for("network"))
 
-        # Detect mode (DHCP or Static)
+    # Detect mode (DHCP or Static)
     mode = "dhcp"
     with open(config_file, "r") as f:
         conf = f.read()
@@ -171,7 +183,7 @@ def network():
                            ip_octets=ip_octets,
                            gw_octets=gw_octets)
 
-
+# --- BACnet Scan Page ---
 @app.route("/bacnet_scan", methods=["GET", "POST"])
 def bacnet_scan_route():
     results = {}
@@ -179,6 +191,7 @@ def bacnet_scan_route():
         scan_type = request.form.get("scan_type", "full")
         eth0_ip = get_eth0_ip()
         ip_with_mask = f"{eth0_ip}/24" if eth0_ip else "0.0.0.0/24"
+        # Choose scan type: quick or full
         if scan_type == "quick":
             scan_results, networks_found = asyncio.run(bacnet_quick_scan(ip_with_mask, return_networks=True))
         else:
@@ -209,10 +222,9 @@ def bacnet_scan_route():
 
 @app.route("/download_csv")
 def download_csv():
+    # Download CSV by path (legacy, not used in main flow)
     path = request.args.get("path")
     return send_file(path, as_attachment=True)
-
-
 
 # --- Add your other routes (network, index, etc.) below ---
 

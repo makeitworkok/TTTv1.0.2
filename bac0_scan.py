@@ -7,9 +7,11 @@ import socket
 import fcntl
 import struct
 
+# Directory to store scan results as CSV files
 OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Get the IP address of a given network interface (e.g., 'eth0')
 def get_ip_address(ifname):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     return socket.inet_ntoa(fcntl.ioctl(
@@ -18,28 +20,22 @@ def get_ip_address(ifname):
         struct.pack('256s', ifname[:15].encode('utf-8'))
     )[20:24])
 
-# Usage:
+# Example usage to get eth0 IP and subnet mask
 eth0_ip = get_ip_address('eth0')
 ip_with_mask = f"{eth0_ip}/24"
 
-# _bacnet_instance = None
-
-''' async def get_bacnet(ip_with_mask):
-    global _bacnet_instance
-    if _bacnet_instance is None:
-        _bacnet_instance = BAC0.lite(ip=ip_with_mask)
-        await asyncio.sleep(1)  # Give BAC0 time to initialize
-    return _bacnet_instance
-'''
+# Main BACnet scan: discovers devices and collects all points/properties
 async def bacnet_scan(ip_with_mask, return_networks=False):
+    # Start BAC0 with the given IP/mask
     bacnet = BAC0.lite(ip=ip_with_mask)
-    await asyncio.sleep(1)  # Give BAC0 time to initialize
-    bacnet.discover()
-    await asyncio.sleep(10)
+    await asyncio.sleep(1)  # Allow BAC0 to initialize
+    bacnet.discover()       # Send Who-Is to discover devices
+    await asyncio.sleep(10) # Wait for responses
 
     discovered = getattr(bacnet, "discoveredDevices", {})
     results = []
 
+    # Properties and object types to scan for each device
     props = ["objectName", "description", "units", "presentValue", "outOfService"]
     object_types = [
         "analogInput", "analogOutput", "analogValue",
@@ -47,12 +43,13 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
         "multiStateInput", "multiStateOutput", "multiStateValue"
     ]
 
+    # Loop through discovered devices
     for key, info in discovered.items():
         instance = info['object_instance'][1]
         device_ip = str(info['address'])
         network_number = info.get("network") or info.get("network_number") or ""
 
-        # Read device-level info
+        # Read device-level info (vendor, model, location)
         device_info = {}
         for prop in ["vendorName", "modelName", "location"]:
             try:
@@ -61,7 +58,7 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
             except Exception:
                 device_info[prop] = None
 
-        # Try objectList first
+        # Try to get the objectList for the device (preferred)
         objects = []
         try:
             object_list = await bacnet.read(f"{device_ip} device {instance} objectList")
@@ -76,6 +73,7 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
                     "modelName": device_info["modelName"],
                     "location": device_info["location"]
                 }
+                # Read properties for each object
                 for prop in props:
                     try:
                         value = await bacnet.read(f"{device_ip} {obj_type} {obj_instance} {prop}")
@@ -84,7 +82,7 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
                         obj_row[prop] = None
                 objects.append(obj_row)
         except Exception:
-            # Fallback: probe common object types/instances
+            # If objectList fails, try common object types/instances manually
             for obj_type in object_types:
                 if obj_type.startswith("analog"):
                     scan_props = ["objectName", "description", "presentValue", "outOfService"]
@@ -114,18 +112,20 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
 
         results.extend(objects)
 
+    # Optionally return the list of networks found
     if return_networks:
         networks_found = set()
         for info in discovered.values():
             net = info.get("network") or info.get("network_number")
             if net:
                 networks_found.add(str(net))
-        bacnet.disconnect()  # <--- Properly disconnect BAC0 instance
+        bacnet.disconnect()  # Properly disconnect BAC0 instance
         return results, sorted(networks_found)
 
-    bacnet.disconnect()  # <--- Properly disconnect BAC0 instance
+    bacnet.disconnect()  # Properly disconnect BAC0 instance
     return results
 
+# Quick BACnet scan: only queries device-level info (no points/objects)
 async def bacnet_quick_scan(ip_with_mask, return_networks=False):
     bacnet = BAC0.lite(ip=ip_with_mask)
     await asyncio.sleep(1)
@@ -135,6 +135,7 @@ async def bacnet_quick_scan(ip_with_mask, return_networks=False):
     discovered = getattr(bacnet, "discoveredDevices", {})
     results = []
 
+    # Only collect device-level info for each discovered device
     for key, info in discovered.items():
         instance = info['object_instance'][1]
         device_ip = str(info['address'])
@@ -157,6 +158,7 @@ async def bacnet_quick_scan(ip_with_mask, return_networks=False):
             "location": device_info["location"]
         })
 
+    # Optionally return the list of networks found
     if return_networks:
         networks_found = set()
         for info in discovered.values():
@@ -169,6 +171,7 @@ async def bacnet_quick_scan(ip_with_mask, return_networks=False):
     bacnet.disconnect()
     return results
 
+# Export scan results to a CSV file and return the file path
 def export_to_csv(results):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = os.path.join(OUTPUT_DIR, f"bac0_scan_{timestamp}.csv")
