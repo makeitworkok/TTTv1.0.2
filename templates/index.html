@@ -56,24 +56,34 @@
   <h1>TTTv1.0.2 Dashboard</h1>
   <div class="main-content">
     <div class="tabs">
-      <button class="tab active" onclick="showTab(0)">Network Scan</button>
       <button class="tab" onclick="showTab(1)">Network Settings</button>
+      <button class="tab active" onclick="showTab(0)">Network Scan</button>
       <button class="tab" onclick="showTab(2)">BACnet Scan</button>
       <button class="tab" onclick="showTab(3)">About</button>
     </div>
     <div class="tab-content active">
       <h2>Run Network Scan</h2>
-      <p>Scan your network for connected devices and vulnerabilities.</p>
+      <p>Scan your network for connected devices. Collect IP addresses, hostnames, and MAC addresses.</p>
       <a href="/scan" class="button">Start Scan</a>
     </div>
     <div class="tab-content">
       <h2>Network Settings</h2>
-      <p>Configure your network preferences and view current settings.</p>
+      <p>Configure the Ethernet adapter settings.</p>
+      <p><b>Current IP:</b> {{ current_ip }}</p>
+      <p><b>Current Gateway:</b> {{ current_gw }}</p>
+      <p>
+        <b>Status:</b>
+        {% if eth0_active %}
+          <span style="color:green;font-weight:bold;">Active</span>
+        {% else %}
+          <span style="color:red;font-weight:bold;">Inactive</span>
+        {% endif %}
+      </p>
       <a href="/network" class="button">Go to Settings</a>
     </div>
     <div class="tab-content">
       <h2>Run BACnet Scan</h2>
-      <p>Scan for BACnet devices and analyze building automation systems.</p>
+      <p>Scan for BACnet devices on an IP network.</p>
       <a href="/bacnet_scan" class="button">Go to BACnet Scan</a>
     </div>
     <div class="tab-content">

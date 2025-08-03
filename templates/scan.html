@@ -75,8 +75,14 @@
     <!-- Run Scan -->
     <form method="POST" style="margin-top: 20px;">
       <input type="hidden" name="scan_now" value="1">
-      <button type="submit" class="button" id="start-scan">Run Scan</button>
+      <button type="submit" class="button" id="start-scan"
+        {% if not eth0_active %}disabled title="Ethernet is inactive. Plug in a cable to scan."{% endif %}>
+        Run Scan
+      </button>
     </form>
+    {% if not eth0_active %}
+      <div style="color:red; margin-top:10px;">Ethernet is inactive. Please connect a cable to enable scanning.</div>
+    {% endif %}
 
     <div id="progress-bar">
       <span>Scanning... Please wait.</span>

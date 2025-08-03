@@ -1,6 +1,6 @@
 # TTTv1.0.2 Dashboard
 
-This project began as a way to bridge a gap I kept seeing in the field—most HVAC controls technicians and account managers aren't deeply familiar with IT or systems integration. I’ve spent a lot of time trying to make this tool practical, accessible, and field-ready. My hope is that it can make networking and BACnet diagnostics easier for those of us who didn’t come up through the IT side of the house. If it helps you or your team get a clearer picture of what’s going on in the network, then it’s doing its job.
+This project began as a way to bridge a gap I kept seeing in the field, many HVAC controls technicians and account managers aren't deeply familiar with IT or systems integration. I’ve spent a lot of time trying to make this tool practical, accessible, and field-ready. My hope is that it can make networking and BACnet diagnostics easier for those of us who didn’t come up through the IT side of the house. If it helps you or your team get a clearer picture of what’s going on in the network, then it’s doing its job.
 
 A web-based dashboard for network scanning, BACnet device discovery (with deep scan), and network configuration.  
 Built with simplicity in mind, especially for those working in the trenches of HVAC controls and building automation. It’s meant to run cleanly on a Raspberry Pi with minimal setup.

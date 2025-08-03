@@ -82,8 +82,10 @@ def set_scan_range(subnet):
 
 @app.route("/")
 def home():
-    # Dashboard landing page
-    return render_template("index.html")
+    current_ip = get_eth0_ip()
+    current_gw = subprocess.getoutput("ip route | grep '^default' | awk '{print $3}'")
+    eth0_active = is_eth0_active()
+    return render_template("index.html", current_ip=current_ip, current_gw=current_gw, eth0_active=eth0_active)
 
 @app.route("/scan", methods=["GET", "POST"])
 def scan():
@@ -105,8 +107,9 @@ def scan():
 
     # Break subnet into parts for the controls
     base_ip, cidr = subnet.split("/")
+    eth0_active = is_eth0_active()
     return render_template("scan.html", devices=devices, csv_path=csv_path,
-                           base_ip=base_ip.split("."), cidr=cidr)
+                           base_ip=base_ip.split("."), cidr=cidr, eth0_active=eth0_active)
 
 @app.route("/download/<filename>")
 def download(filename):
@@ -218,7 +221,8 @@ def bacnet_scan_route():
             "networks_found": networks_found,
             "device_count": len(unique_devices)
         }
-    return render_template("bacnet.html", results=results)
+    eth0_active = is_eth0_active()
+    return render_template("bacnet.html", results=results, eth0_active=eth0_active)
 
 @app.route("/download_csv")
 def download_csv():
@@ -227,6 +231,11 @@ def download_csv():
     return send_file(path, as_attachment=True)
 
 # --- Add your other routes (network, index, etc.) below ---
+
+def is_eth0_active():
+    # Returns True if eth0 is up, False otherwise
+    output = subprocess.getoutput("cat /sys/class/net/eth0/operstate")
+    return output.strip() == "up"
 
 if __name__ == "__main__":
     print("Flask app started!")

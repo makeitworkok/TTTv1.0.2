@@ -51,23 +51,31 @@
   </style>
 </head>
 <body>
-  <h1>BACnet Who-Is Scan</h1>
+  <h1>BACnet Scan</h1>
   <div class="main-content">
     <form method="POST" id="scan-form">
       <input type="hidden" name="scan_type" id="scan_type" value="full">
-      <button type="submit" class="button" id="start-scan">Start Full Scan</button>
-      <button type="button" class="button" id="quick-scan">Quick Scan</button>
+      <button type="button" class="button" id="quick-scan" {% if not eth0_active %}disabled title="Ethernet is inactive. Plug in a cable to scan."{% endif %}>Quick Scan</button>
+      <button type="submit" class="button" id="start-scan" {% if not eth0_active %}disabled title="Ethernet is inactive. Plug in a cable to scan."{% endif %}>Run Scan</button>
     </form>
     <div id="progress-bar">
       <span>Scanning... Please wait.</span>
       <span class="loader"></span>
     </div>
+    <p>
+      <strong>Quick Scan:</strong> Only identifies active BACnet devices.<br>
+      <strong>Full Scan:</strong> Queries all discovered devices and associated points.
+    </p>
+    <p>
+      <strong>Note:</strong> The Full Scan may take several minutes depending on the number of devices and network speed.
+    </p>
     {% if results.networks_found %}
       <div style="margin-bottom: 1em;">
         <b>Networks found:</b> {{ results.networks_found|join(', ') }}<br>
         <b>Devices found:</b> {{ results.device_count }}
       </div>
     {% endif %}
+    <h2>Scan Results</h2>
     <h2>Discovered Devices</h2>
     {% if results.devices %}
       <div style="overflow-x:auto;">
@@ -96,6 +104,9 @@
     {% endif %}
     <br>
     <a href="/" class="button" style="margin-top:16px;">Back</a>
+    {% if not eth0_active %}
+      <div style="color:red; margin-top:10px;">Ethernet is inactive. Please connect a cable to enable scanning.</div>
+    {% endif %}
   </div>
 
   <script>
