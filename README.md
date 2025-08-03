@@ -214,3 +214,46 @@ Pull requests welcome!
 ## License
 
 MIT
+
+---
+
+## Autostart on Boot (systemd)
+
+To have the dashboard start automatically on boot, use a systemd service:
+
+1. **Create the service file** `/etc/systemd/system/ttt.service` with the following contents:
+
+    ```
+    [Unit]
+    Description=TTT Flask App
+    After=network.target
+
+    [Service]
+    User=pi
+    WorkingDirectory=/home/pi/TTTv1.0.2
+    ExecStart=/usr/bin/python3 /home/pi/TTTv1.0.2/app.py
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+2. **Enable and start the service:**
+    ```sh
+    sudo systemctl daemon-reload
+    sudo systemctl enable ttt.service
+    sudo systemctl start ttt.service
+    ```
+
+3. The dashboard will now start automatically at boot.  
+   Check status with:
+    ```sh
+    sudo systemctl status ttt.service
+    ```
+
+**Tip:**  
+Because no user is placed in the .service file, it will run as su.
+To stop/start/enable/disable the service just run:
+sudo systemctl ______ ttt.service
+
+---
