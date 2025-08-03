@@ -5,7 +5,7 @@
   <title>TTTv1.0.2 Dashboard</title>
   <style>
     body { background: #e6e6e6; color: #222; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
-    h1 { color: #e03a3e; margin-top: 32px; font-size: 2em; }
+    h1 { color: #e03a3e; margin-top: 32px; font-size: 2em; text-align: center; }
     h2 { margin-top: 32px; margin-bottom: 16px; }
     .main-content { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); max-width: 700px; width: 100%; padding: 32px 16px; margin: 32px auto; }
     .tabs { display: flex; flex-wrap: wrap; margin-bottom: 24px; }
@@ -56,17 +56,13 @@
   <h1>TTTv1.0.2 Dashboard</h1>
   <div class="main-content">
     <div class="tabs">
-      <button class="tab" onclick="showTab(1)">Network Settings</button>
-      <button class="tab active" onclick="showTab(0)">Network Scan</button>
+      <button class="tab active" onclick="showTab(0)">Network Settings</button>
+      <button class="tab" onclick="showTab(1)">Network Scan</button>
       <button class="tab" onclick="showTab(2)">BACnet Scan</button>
       <button class="tab" onclick="showTab(3)">About</button>
     </div>
+
     <div class="tab-content active">
-      <h2>Run Network Scan</h2>
-      <p>Scan your network for connected devices. Collect IP addresses, hostnames, and MAC addresses.</p>
-      <a href="/scan" class="button">Start Scan</a>
-    </div>
-    <div class="tab-content">
       <h2>Network Settings</h2>
       <p>Configure the Ethernet adapter settings.</p>
       <p><b>Current IP:</b> {{ current_ip }}</p>
@@ -80,6 +76,11 @@
         {% endif %}
       </p>
       <a href="/network" class="button">Go to Settings</a>
+    </div>
+        <div class="tab-content">
+      <h2>Run Network Scan</h2>
+      <p>Scan your network for connected devices. Collect IP addresses, hostnames, and MAC addresses.</p>
+      <a href="/scan" class="button">Start Scan</a>
     </div>
     <div class="tab-content">
       <h2>Run BACnet Scan</h2>
