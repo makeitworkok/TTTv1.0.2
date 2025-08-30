@@ -1,14 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
 import subprocess, csv, datetime, os, re, socket
 import asyncio
+import ipaddress
 
 from bac0_scan import bacnet_scan, bacnet_quick_scan, export_to_csv
 
 app = Flask(__name__)
 
-# Directory to store scan results
-OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
+# Use project-relative results dir (or override via TTT_RESULTS_DIR)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.environ.get("TTT_RESULTS_DIR", os.path.join(BASE_DIR, "results"))
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Absolute path (systemd often lacks /usr/sbin in PATH)
+ARP_SCAN_BIN = os.environ.get("ARP_SCAN_BIN", "/usr/sbin/arp-scan")
 
 # File to store the selected scan range for ARP scan
 SCAN_RANGE_FILE = "/tmp/scan_range.txt"
@@ -18,9 +23,47 @@ def get_eth0_ip():
     ip = subprocess.getoutput("ip -4 addr show eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'")
     return ip.splitlines()[0] if ip else ""
 
+def get_up_interface(preferred="eth0"):
+    """Prefer eth0; fall back to wlan0 if it's the only active link."""
+    for iface in (preferred, "wlan0"):
+        state = subprocess.getoutput(f"cat /sys/class/net/{iface}/operstate 2>/dev/null").strip()
+        if state == "up":
+            return iface
+    return preferred
+
+def get_iface_cidr(iface):
+    """Return first IPv4 CIDR on iface, e.g. 192.168.50.1/24, or ''."""
+    return subprocess.getoutput(
+        f"ip -4 -o addr show {iface} | awk '{{print $4}}' | head -n1"
+    ).strip()
+
+def pick_interface_for_subnet(subnet_cidr):
+    """
+    Pick eth0/wlan0 whose IP is inside the requested subnet.
+    Falls back to get_up_interface if no exact match.
+    """
+    try:
+        target_net = ipaddress.ip_network(subnet_cidr, strict=False)
+    except Exception:
+        return get_up_interface("eth0")
+    for iface in ("eth0", "wlan0"):
+        cidr = get_iface_cidr(iface)
+        if not cidr:
+            continue
+        try:
+            if ipaddress.ip_interface(cidr).ip in target_net:
+                state = subprocess.getoutput(f"cat /sys/class/net/{iface}/operstate 2>/dev/null").strip()
+                if state == "up":
+                    return iface
+        except Exception:
+            pass
+    return get_up_interface("eth0")
+
 # Run ARP scan on the specified subnet, repeat for reliability
 def run_arp_scan_with_range(subnet, repeats=10):
+    """Run arp-scan on the chosen subnet and return (devices, csv_path, error)."""
     devices_dict = {}
+    error = None
     try:
         from mac_vendor_lookup import MacLookup
         mac_lookup = MacLookup()
@@ -28,42 +71,64 @@ def run_arp_scan_with_range(subnet, repeats=10):
         print("MacLookup import failed:", e)
         mac_lookup = None
 
+    # Choose interface that actually belongs to the subnet
+    iface = pick_interface_for_subnet(subnet)
+
+    if not os.path.exists(ARP_SCAN_BIN):
+        error = f"arp-scan not found at {ARP_SCAN_BIN}"
+        print(error)
+        return [], None, error
+
+    # Ensure iface is up
+    if subprocess.getoutput(f"cat /sys/class/net/{iface}/operstate 2>/dev/null").strip() != "up":
+        error = f"Interface {iface} is down. Bring link up and try again."
+        print(error)
+        return [], None, error
+
+    # No sudo; rely on setcap on /usr/sbin/arp-scan
+    base_cmd = [ARP_SCAN_BIN, "--interface", iface, subnet]
+    print("ARP-SCAN CMD:", " ".join(base_cmd), "euid=", os.geteuid())
+
     for _ in range(repeats):
         try:
-            result = subprocess.run(
-                ["arp-scan", "--interface", "eth0", subnet],
-                capture_output=True, text=True, check=True
-            )
+            result = subprocess.run(base_cmd, capture_output=True, text=True, check=True)
             for line in result.stdout.splitlines():
-                if line and ":" in line and line.split()[0].split('.')[0].isdigit():
-                    parts = line.split()
+                parts = line.split()
+                if len(parts) >= 2 and ":" in parts[1] and parts[0][0].isdigit():
                     ip, mac = parts[0], parts[1]
-                    # Try to resolve hostname
                     try:
                         hostname = socket.gethostbyaddr(ip)[0]
                     except Exception:
                         hostname = ""
-                    # Try to resolve vendor
                     try:
                         vendor = mac_lookup.lookup(mac) if mac_lookup else ""
                     except Exception:
                         vendor = ""
-                    if mac not in devices_dict:
-                        devices_dict[mac] = [ip, mac, hostname, vendor]
+                    devices_dict.setdefault(mac, [ip, mac, hostname, vendor])
+        except subprocess.CalledProcessError as e:
+            msg = e.stderr or e.stdout or str(e)
+            print("ARP scan failed:", msg)
+            if "must be root" in msg.lower() or "operation not permitted" in msg.lower():
+                error = "arp-scan needs privileges. Run: sudo setcap cap_net_raw,cap_net_admin+eip /usr/sbin/arp-scan"
+            else:
+                error = msg
+            break
         except Exception as e:
-            print("ARP scan failed:", e)
-            continue
+            error = str(e)
+            print("ARP scan failed:", error)
+            break
 
     devices = list(devices_dict.values())
+    csv_path = None
+    if devices:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = os.path.join(OUTPUT_DIR, f"arp_scan_{timestamp}.csv")
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["IP Address", "MAC Address", "Hostname", "Vendor"])
+            writer.writerows(devices)
 
-    # Save results to CSV
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_path = os.path.join(OUTPUT_DIR, f"arp_scan_{timestamp}.csv")
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["IP Address", "MAC Address", "Hostname", "Vendor"])
-        writer.writerows(devices)
-    return devices, csv_path
+    return devices, csv_path, error
 
 # Get the current scan range for ARP scan
 def get_scan_range():
@@ -89,27 +154,29 @@ def home():
 
 @app.route("/scan", methods=["GET", "POST"])
 def scan():
-    # ARP network scan page
     subnet = get_scan_range()
-    devices, csv_path = [], None
+    devices, csv_path, error = [], None, None
 
     if request.method == "POST":
         if "octet" in request.form:
-            # User updated subnet range
             base_ip = request.form.getlist("octet")
             cidr = request.form.get("cidr", "24")
-            new_range = ".".join(base_ip) + f"/{cidr}"
-            set_scan_range(new_range)
-            subnet = new_range
+            subnet = ".".join(base_ip) + f"/{cidr}"
+            set_scan_range(subnet)
         else:
-            # User triggered a scan
-            devices, csv_path = run_arp_scan_with_range(subnet)
+            # Run scan
+            devices, csv_path, error = run_arp_scan_with_range(subnet)
 
-    # Break subnet into parts for the controls
     base_ip, cidr = subnet.split("/")
-    eth0_active = is_eth0_active()
-    return render_template("scan.html", devices=devices, csv_path=csv_path,
-                           base_ip=base_ip.split("."), cidr=cidr, eth0_active=eth0_active)
+    return render_template(
+        "scan.html",
+        devices=devices,
+        csv_path=csv_path,
+        base_ip=base_ip.split("."),
+        cidr=cidr,
+        error=error,
+        eth0_active=is_eth0_active(),
+    )
 
 @app.route("/download/<filename>")
 def download(filename):
@@ -190,39 +257,59 @@ def network():
 @app.route("/bacnet_scan", methods=["GET", "POST"])
 def bacnet_scan_route():
     results = {}
+    error = None
+
     if request.method == "POST":
-        scan_type = request.form.get("scan_type", "full")
+        # Pre-check link/IP
         eth0_ip = get_eth0_ip()
-        ip_with_mask = f"{eth0_ip}/24" if eth0_ip else "0.0.0.0/24"
-        # Choose scan type: quick or full
-        if scan_type == "quick":
-            scan_results, networks_found = asyncio.run(bacnet_quick_scan(ip_with_mask, return_networks=True))
-        else:
-            scan_results, networks_found = asyncio.run(bacnet_scan(ip_with_mask, return_networks=True))
+        if not is_eth0_active():
+            error = "Ethernet (eth0) is inactive. Connect a cable and try again."
+        elif not eth0_ip:
+            error = "No IP address on eth0. Acquire an IP and try again."
 
-        # Only keep one entry per unique device_instance
-        unique_devices = {}
-        for d in scan_results:
-            inst = d["device_instance"]
-            if inst not in unique_devices:
-                unique_devices[inst] = d
+        if not error:
+            scan_type = request.form.get("scan_type", "full")
+            ip_with_mask = f"{eth0_ip}/24"
+            try:
+                # Choose scan type: quick or full
+                if scan_type == "quick":
+                    scan_results, networks_found = asyncio.run(
+                        bacnet_quick_scan(ip_with_mask, return_networks=True)
+                    )
+                else:
+                    scan_results, networks_found = asyncio.run(
+                        bacnet_scan(ip_with_mask, return_networks=True)
+                    )
 
-        results = {
-            "devices": [
-                {
-                    "device_instance": d["device_instance"],
-                    "address": d["device_ip"],
-                    "vendorName": d.get("vendorName", "-"),
-                    "modelName": d.get("modelName", "-")
+                # Only keep one entry per unique device_instance
+                unique_devices = {}
+                for d in scan_results:
+                    inst = d.get("device_instance")
+                    if inst is not None and inst not in unique_devices:
+                        unique_devices[inst] = d
+
+                results = {
+                    "devices": [
+                        {
+                            "device_instance": d.get("device_instance"),
+                            "address": d.get("device_ip"),
+                            "vendorName": d.get("vendorName", "-"),
+                            "modelName": d.get("modelName", "-"),
+                        }
+                        for d in unique_devices.values()
+                    ],
+                    "csv": export_to_csv(scan_results) if scan_results else None,
+                    "networks_found": networks_found,
+                    "device_count": len(unique_devices),
                 }
-                for d in unique_devices.values()
-            ],
-            "csv": export_to_csv(scan_results),
-            "networks_found": networks_found,
-            "device_count": len(unique_devices)
-        }
+            except Exception as e:
+                import traceback
+                print("BACnet scan failed:", e)
+                print(traceback.format_exc())
+                error = f"BACnet scan failed: {e}"
+
     eth0_active = is_eth0_active()
-    return render_template("bacnet.html", results=results, eth0_active=eth0_active)
+    return render_template("bacnet.html", results=results, eth0_active=eth0_active, error=error)
 
 @app.route("/download_csv")
 def download_csv():
@@ -233,10 +320,10 @@ def download_csv():
 # --- Add your other routes (network, index, etc.) below ---
 
 def is_eth0_active():
-    # Returns True if eth0 is up, False otherwise
-    output = subprocess.getoutput("cat /sys/class/net/eth0/operstate")
-    return output.strip() == "up"
+    """True if eth0 link is up."""
+    return subprocess.getoutput("cat /sys/class/net/eth0/operstate 2>/dev/null").strip() == "up"
 
 if __name__ == "__main__":
-    print("Flask app started!")
-    app.run(host="0.0.0.0", port=80)
+    port = int(os.environ.get("PORT", "8080"))  # was 80; default to 8080
+    print(f"Flask app started on port {port}!")
+    app.run(host="0.0.0.0", port=port)

@@ -84,6 +84,10 @@
       <div style="color:red; margin-top:10px;">Ethernet is inactive. Please connect a cable to enable scanning.</div>
     {% endif %}
 
+    {% if error %}
+      <div style="color:#b00020; font-weight:600; margin:8px 0;">{{ error }}</div>
+    {% endif %}
+
     <div id="progress-bar">
       <span>Scanning... Please wait.</span>
       <span class="loader"></span>

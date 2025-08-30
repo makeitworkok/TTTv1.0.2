@@ -7,8 +7,9 @@ import socket
 import fcntl
 import struct
 
-# Directory to store scan results as CSV files
-OUTPUT_DIR = "/home/makeitworkok/TTTv1.0.2/results"
+# Directory to store scan results as CSV files (project-relative or env override)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.environ.get("TTT_RESULTS_DIR", os.path.join(BASE_DIR, "results"))
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Get the IP address of a given network interface (e.g., 'eth0')

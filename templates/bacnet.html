@@ -53,10 +53,19 @@
 <body>
   <h1>BACnet Scan</h1>
   <div class="main-content">
+    {% if error %}
+      <div style="color:#b00020; font-weight:600; margin:8px 0;">{{ error }}</div>
+    {% endif %}
     <form method="POST" id="scan-form">
       <input type="hidden" name="scan_type" id="scan_type" value="full">
-      <button type="button" class="button" id="quick-scan" {% if not eth0_active %}disabled title="Ethernet is inactive. Plug in a cable to scan."{% endif %}>Quick Scan</button>
-      <button type="submit" class="button" id="start-scan" {% if not eth0_active %}disabled title="Ethernet is inactive. Plug in a cable to scan."{% endif %}>Run Scan</button>
+      <button type="submit" class="button" id="start-scan"
+              {% if not eth0_active %}disabled title="Ethernet is inactive"{% endif %}>
+        Start Full Scan
+      </button>
+      <button type="button" class="button" id="quick-scan"
+              {% if not eth0_active %}disabled title="Ethernet is inactive"{% endif %}>
+        Quick Scan
+      </button>
     </form>
     <div id="progress-bar">
       <span>Scanning... Please wait.</span>
@@ -114,11 +123,13 @@
       document.getElementById('scan_type').value = 'full';
       document.getElementById('progress-bar').style.display = 'block';
     };
-    document.getElementById('quick-scan').onclick = function() {
-      document.getElementById('scan_type').value = 'quick';
-      document.getElementById('scan-form').submit();
-      document.getElementById('progress-bar').style.display = 'block';
-    };
+    const quickBtn = document.getElementById('quick-scan');
+    if (quickBtn) {
+      quickBtn.onclick = function () {
+        document.getElementById('scan_type').value = 'quick';
+        document.getElementById('scan-form').submit();
+      };
+    }
   </script>
 </body>
 </html>
