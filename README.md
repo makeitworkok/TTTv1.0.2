@@ -13,6 +13,7 @@ Built with simplicity in mind, especially for those working in the trenches of H
 
 - **Network Scan:** Scan your local subnet for devices using ARP.
 - **BACnet Scan:** Discover BACnet devices and automatically perform a deep scan (all objects/points and properties are collected in one scan).
+- **Adjustable BACnet UDP Port:** Default is 47808; change per-scan in the UI or set a default via env var.
 - **Network Settings:** Configure static/DHCP IP for `eth0`.
 - **CSV Export:** Download scan results as CSV files, with consistent column order.
 - **Live Device/Network Info:** See networks found and device count after each scan.
@@ -71,7 +72,8 @@ pip install -r requirements.txt
 ```sh
 # In project folder
 export PORT=8080
-# Optional: override results location if desired
+# Optional defaults:
+# export BACNET_UDP_PORT=47808   # Default BACnet port (change if your site uses a non-standard port)
 # export TTT_RESULTS_DIR=/home/makeitworkok/TTTv1.0.2/results
 python3 app.py
 ```
@@ -112,13 +114,13 @@ This project is configured to be accessible at `http://tttv1.local` on your netw
 ## BACnet Scan
 
 - Go to **BACnet Scan** tab.
-- Click **Start BACnet Scan** to discover BACnet devices and automatically perform a deep scan (all points/properties).
-- While scanning, a "Please wait" message or spinner is shown.
-- After scan, you see:
-  - **Networks found**
-  - **Device count**
-  - **Unique devices** (one row per device instance)
-- Download all results as CSV.
+- Set the optional “BACnet UDP Port” (default 47808). This value applies to the current scan only.
+- Click **Start Full Scan** or **Quick Scan**.
+- After scan, you see networks found, device count, and can download CSV.
+
+Tip:
+- To change the default port globally (for all sessions), set environment variable `BACNET_UDP_PORT` (see systemd example below).
+- Ensure firewalls allow the selected UDP port.
 
 ---
 
@@ -217,6 +219,10 @@ Connect to it and access the dashboard at `http://192.168.50.1` or `http://tttv1
 - arp-scan not found:
   - Install: sudo apt-get install -y arp-scan
   - Ensure correct path: which arp-scan → /usr/sbin/arp-scan
+- BACnet devices not discovered on expected port:
+  - Verify the device’s BACnet/IP port setting.
+  - Set the port in the BACnet Scan page or via env: `BACNET_UDP_PORT=<port>`.
+  - Ensure UDP is permitted on that port (switch/firewall).
 
 ---
 
@@ -326,6 +332,7 @@ Group=makeitworkok
 WorkingDirectory=/home/makeitworkok/TTTv1.0.2
 Environment=PYTHONUNBUFFERED=1
 Environment=PORT=8080
+Environment=BACNET_UDP_PORT=47808
 Environment=TTT_RESULTS_DIR=/home/makeitworkok/TTTv1.0.2/results
 Environment=ARP_SCAN_BIN=/usr/sbin/arp-scan
 ExecStart=/usr/bin/python3 /home/makeitworkok/TTTv1.0.2/app.py

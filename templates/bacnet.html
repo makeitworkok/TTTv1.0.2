@@ -57,6 +57,12 @@
       <div style="color:#b00020; font-weight:600; margin:8px 0;">{{ error }}</div>
     {% endif %}
     <form method="POST" id="scan-form">
+      <div style="margin:8px 0;">
+        <label for="udp_port"><b>BACnet UDP Port</b></label>
+        <input type="number" id="udp_port" name="udp_port"
+               value="{{ udp_port or 47808 }}" min="1024" max="65535"
+               style="width:120px; margin-left:8px;">
+      </div>
       <input type="hidden" name="scan_type" id="scan_type" value="full">
       <button type="submit" class="button" id="start-scan"
               {% if not eth0_active %}disabled title="Ethernet is inactive"{% endif %}>

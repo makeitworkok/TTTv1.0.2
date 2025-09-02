@@ -14,6 +14,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Absolute path (systemd often lacks /usr/sbin in PATH)
 ARP_SCAN_BIN = os.environ.get("ARP_SCAN_BIN", "/usr/sbin/arp-scan")
+BACNET_UDP_PORT = int(os.environ.get("BACNET_UDP_PORT", "47808"))
 
 # File to store the selected scan range for ARP scan
 SCAN_RANGE_FILE = "/tmp/scan_range.txt"
@@ -256,29 +257,38 @@ def network():
 # --- BACnet Scan Page ---
 @app.route("/bacnet_scan", methods=["GET", "POST"])
 def bacnet_scan_route():
-    results = {}
     error = None
+    results = {}
+    udp_port = BACNET_UDP_PORT
+
+    # determine source IP/mask as you already do (example using eth0 IP)
+    eth0_ip = get_eth0_ip()
+    if (eth0_ip):
+        ip_with_mask = f"{eth0_ip}/24"
+    else:
+        ip_with_mask = ""
 
     if request.method == "POST":
-        # Pre-check link/IP
-        eth0_ip = get_eth0_ip()
-        if not is_eth0_active():
-            error = "Ethernet (eth0) is inactive. Connect a cable and try again."
-        elif not eth0_ip:
-            error = "No IP address on eth0. Acquire an IP and try again."
+        # read UDP port from form, fallback to env default
+        try:
+            udp_port = int(request.form.get("udp_port", udp_port))
+            if udp_port < 1024 or udp_port > 65535:
+                udp_port = BACNET_UDP_PORT
+        except Exception:
+            udp_port = BACNET_UDP_PORT
 
-        if not error:
+        if not ip_with_mask:
+            error = "No IP on eth0. Connect and try again."
+        else:
             scan_type = request.form.get("scan_type", "full")
-            ip_with_mask = f"{eth0_ip}/24"
             try:
-                # Choose scan type: quick or full
                 if scan_type == "quick":
                     scan_results, networks_found = asyncio.run(
-                        bacnet_quick_scan(ip_with_mask, return_networks=True)
+                        bacnet_quick_scan(ip_with_mask, return_networks=True, udp_port=udp_port)
                     )
                 else:
                     scan_results, networks_found = asyncio.run(
-                        bacnet_scan(ip_with_mask, return_networks=True)
+                        bacnet_scan(ip_with_mask, return_networks=True, udp_port=udp_port)
                     )
 
                 # Only keep one entry per unique device_instance
@@ -308,8 +318,13 @@ def bacnet_scan_route():
                 print(traceback.format_exc())
                 error = f"BACnet scan failed: {e}"
 
-    eth0_active = is_eth0_active()
-    return render_template("bacnet.html", results=results, eth0_active=eth0_active, error=error)
+    return render_template(
+        "bacnet.html",
+        error=error,
+        eth0_active=is_eth0_active(),
+        udp_port=udp_port,
+        results=results,
+    )
 
 @app.route("/download_csv")
 def download_csv():

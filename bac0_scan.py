@@ -26,9 +26,9 @@ eth0_ip = get_ip_address('eth0')
 ip_with_mask = f"{eth0_ip}/24"
 
 # Main BACnet scan: discovers devices and collects all points/properties
-async def bacnet_scan(ip_with_mask, return_networks=False):
-    # Start BAC0 with the given IP/mask
-    bacnet = BAC0.lite(ip=ip_with_mask)
+async def bacnet_scan(ip_with_mask, return_networks=False, udp_port=47808):
+    # Start BAC0 with the given IP/mask and UDP port
+    bacnet = BAC0.lite(ip=ip_with_mask, port=udp_port)
     await asyncio.sleep(1)  # Allow BAC0 to initialize
     bacnet.discover()       # Send Who-Is to discover devices
     await asyncio.sleep(10) # Wait for responses
@@ -127,8 +127,8 @@ async def bacnet_scan(ip_with_mask, return_networks=False):
     return results
 
 # Quick BACnet scan: only queries device-level info (no points/objects)
-async def bacnet_quick_scan(ip_with_mask, return_networks=False):
-    bacnet = BAC0.lite(ip=ip_with_mask)
+async def bacnet_quick_scan(ip_with_mask, return_networks=False, udp_port=47808):
+    bacnet = BAC0.lite(ip=ip_with_mask, port=udp_port)
     await asyncio.sleep(1)
     bacnet.discover()
     await asyncio.sleep(10)
