@@ -1,5 +1,13 @@
 # TTTv1.0.2 Dashboard
 
+> 🚀 **Platform Testing Update**  
+> We’re currently putting the **Radxa Zero 3e** through its paces as a potential platform of choice for this project!  
+> It’s looking promising, but we want to make sure it meets all our needs—so expect plenty of tinkering and testing before we make anything official.  
+>
+> **Interested in helping out with testing?**  
+> I’d love some extra hands (and hardware!) on deck. If you’re curious or want to help, please reach out!
+>
+
 My name is Chris Favre, project manager and evangelist of all things HVAC. Over the years I've seen the industry change from pneumatic to DOS and text based, graphical programming, and web based solutions. As time has evolved, we have a great need for easy to use toolsets to keep our technicians and account managers up to date. Who still remembers Hayes commands, ATDT8675309? 
 
 This project began as a way to bridge a gap I kept seeing in the field, many HVAC controls technicians and account managers aren't deeply familiar with IT or systems integration. I’ve spent a lot of time trying to make this tool practical, accessible, and field-ready. My hope is that it can make networking and BACnet diagnostics easier for those of us who didn’t come up through the IT side of the house. If it helps you or your team get a clearer picture of what’s going on in the network, then it’s doing its job.
