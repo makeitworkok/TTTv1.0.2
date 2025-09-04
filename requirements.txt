@@ -1,0 +1,10 @@
+# Core web
+Flask>=2.2,<2.3  # 2.2.x supports Python 3.7; avoids Flask 3.x on older systems
+
+# BACnet scanning
+BAC0>=20.12,<24.0  # BAC0 library used for BACnet/IP discovery and reads
+bacpypes>=0.17,<1.0  # BAC0 depends on bacpypes (classic), not bacpypes3
+
+# Optional helpers (safe to include; used for vendor lookup and NIC info)
+mac-vendor-lookup>=0.1.12
+netifaces>=0.11.0
